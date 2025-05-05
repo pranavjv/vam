@@ -1,0 +1,31 @@
+# macOS
+.DS_Store
+
+# Python byte-code / caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Virtual environments
+.venv/
+env/
+ENV/
+venv/
+
+# Poetry environment (if you ever check that in)
+poetry.lock
+
+# Data folder (ignore everything inside)
+data/
+
+# Optional extras you probably don’t want in git:
+# VS Code settings
+.vscode/
+
+# Logs, test artifacts, coverage reports
+*.log
+htmlcov/
+.coverage
