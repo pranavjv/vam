@@ -14,8 +14,11 @@ class VADAM(Optimizer):
     """
     Velocity-Adaptive Momentum (VAM) optimizer with Adam-like behavior and weight decay according to ADAMW
     """
-    def __init__(self, params, beta1= 0.9, beta2= 0.999, beta3= 1, mass= 10, eps=1e-8, weight_decay=0, power=2):
-        defaults= dict(beta1 = beta1, beta2= beta2, beta3= beta3, mass=mass, eps = eps, weight_decay= weight_decay, power=power)
+    def __init__(self, params, beta1= 0.9, beta2= 0.999, beta3= 1, eta= 0.001, eps=1e-8, weight_decay=0, power=2, normgrad= True, lr_cutoff= 19):
+        # eta corresponds to the maximal learning rate
+        # if normgrad True the norm in the lr is is computed on the gradient, otherwise the velocity!
+        # lr_cutoff controls the minimal learning rate, if = 19 minimal learning rate is eta/(19+1)
+        defaults= dict(beta1 = beta1, beta2= beta2, beta3= beta3, eps = eps, weight_decay= weight_decay, power=power, eta= eta, normgrad= normgrad, lr_cutoff= lr_cutoff)
         super().__init__(params, defaults)
 
     @torch.no_grad()
@@ -26,10 +29,12 @@ class VADAM(Optimizer):
             beta1= group['beta1']
             beta2= group['beta2']
             beta3= group['beta3']
-            mass = group['mass']
             eps = group['eps']
             wd= group['weight_decay']
             power= group['power']
+            eta= group['eta']
+            normgrad= group['normgrad']
+            lr_cutoff= group['lr_cutoff']
 
             # get velocity and second moment terms
             total_sq_norm = 0.0
@@ -44,7 +49,10 @@ class VADAM(Optimizer):
                     buf_vel = torch.zeros_like(p)
                     state['momentum_buffer'] = buf_vel
                 buf_vel.mul_(beta1).add_(d_p, alpha=1- beta1)
-                total_sq_norm += float(buf_vel.abs().pow(power).sum())
+                if  normgrad:
+                    total_sq_norm += float(d_p.abs().pow(power).sum())
+                else:
+                    total_sq_norm += float(buf_vel.abs().pow(power).sum())
 
                 buf_sec_mom= state.get('sec_momentum_buffer', None)
                 if buf_sec_mom is None:
@@ -61,7 +69,7 @@ class VADAM(Optimizer):
 
 
 
-            lr= 1/(mass + beta3 * total_sq_norm)
+            lr= eta/(1 + torch.min(beta3 * total_sq_norm, lr_cutoff))
             print(f"total_sq_norm: {total_sq_norm}")
             for p in group['params']:
                 if p.grad is None:
