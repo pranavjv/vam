@@ -69,7 +69,7 @@ class VADAM(Optimizer):
 
 
 
-            lr= eta/(1 + torch.min(beta3 * total_sq_norm, lr_cutoff))
+            lr= eta/(1 + min(float(beta3 * total_sq_norm), float(lr_cutoff)))
             print(f"total_sq_norm: {total_sq_norm}")
             for p in group['params']:
                 if p.grad is None:
@@ -79,9 +79,12 @@ class VADAM(Optimizer):
 
                 # could be done more efficiently in place
                 # rescale  velocity and second moment terms
+
+
                 tmp1= buf_vel.div(1- beta1**t)
                 tmp2= buf_sec_mom.div(1- beta2**t)
 
+                
                 tmp2.sqrt_().add_(eps)
                 tmp1.div_(tmp2)
 
