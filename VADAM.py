@@ -70,7 +70,8 @@ class VADAM(Optimizer):
 
 
             lr= eta/(1 + min(float(beta3 * total_sq_norm), float(lr_cutoff)))
-            print(f"total_sq_norm: {total_sq_norm}")
+            # Commenting out the print to avoid flooding output during benchmarking
+            # print(f"total_sq_norm: {total_sq_norm}")
             for p in group['params']:
                 if p.grad is None:
                     continue

@@ -1,0 +1,14 @@
+OPTIMIZER BENCHMARK SUMMARY
+==========================
+
+Model Configuration: CIFAR10_SimpleCNN
+--------------------------------------------------
+Test Loss: ADAM = 2.328015, VADAM = 2.268166
+Test Accuracy: ADAM = 0.1445, VADAM = 0.1790
+Training Time: ADAM = 202.03s, VADAM = 205.28s
+Loss Improvement: 2.57% (better for VADAM)
+Accuracy Improvement: 3.45 percentage points (better for VADAM)
+Time Efficiency: -1.61% (slower for VADAM)
+
+==================================================
+

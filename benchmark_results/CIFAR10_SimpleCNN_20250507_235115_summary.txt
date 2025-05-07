@@ -1,0 +1,27 @@
+OPTIMIZER COMPARISON: Optimizer Comparison: SimpleCNN on CIFAR10
+==================================================
+
+OPTIMIZER: ADAM
+------------------------------
+Training Time: 199.03 seconds
+Final Train Loss: 1.996600
+Final Train Accuracy: 0.3000
+Test Loss: 2.230944
+Test Accuracy: 0.1749
+Generalization Gap (Acc): -0.1251
+
+OPTIMIZER: VADAM
+------------------------------
+Training Time: 198.49 seconds
+Final Train Loss: 2.204653
+Final Train Accuracy: 0.1600
+Test Loss: 2.313060
+Test Accuracy: 0.1496
+Generalization Gap (Acc): -0.0104
+
+
+HEAD-TO-HEAD COMPARISON
+------------------------------
+Training Time Difference: -0.54s (-0.3%)
+Test Loss Difference: 0.082116 (3.7%)
+Test Accuracy Difference: -0.0253 (-2.5 percentage points)

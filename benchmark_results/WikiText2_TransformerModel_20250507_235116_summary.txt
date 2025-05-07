@@ -1,0 +1,25 @@
+OPTIMIZER COMPARISON: Optimizer Comparison: TransformerModel on WikiText2
+==================================================
+
+OPTIMIZER: ADAM
+------------------------------
+Training Time: 0.00 seconds
+Final Train Loss: 0.000000
+Final Train Perplexity: 1.00
+Test Loss: 0.000000
+Test Perplexity: 1.00
+Generalization Gap (PPL): 0.00
+
+OPTIMIZER: VADAM
+------------------------------
+Training Time: 0.00 seconds
+Final Train Loss: 0.000000
+Final Train Perplexity: 1.00
+Test Loss: 0.000000
+Test Perplexity: 1.00
+Generalization Gap (PPL): 0.00
+
+
+HEAD-TO-HEAD COMPARISON
+------------------------------
+Training Time Difference: -0.00s (-12.5%)
