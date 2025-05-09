@@ -1,0 +1,44 @@
+{
+  "os": "macOS-15.1-arm64-arm-64bit-Mach-O",
+  "python": "CPython 3.13.1",
+  "startedAt": "2025-05-09T16:37:40.422076Z",
+  "program": "/Users/pranavjv/Downloads/vam/sweep_vadam.py",
+  "codePath": "sweep_vadam.py",
+  "git": {
+    "remote": "https://github.com/pranavjv/vam.git",
+    "commit": "0752fa680dcdd14bc9425ee2117f748631d16bc1"
+  },
+  "email": "pranavaidhya@gmail.com",
+  "root": "/Users/pranavjv/Downloads/vam",
+  "host": "macbookpro.ddns.eng.ox.ac.uk",
+  "executable": "/Users/pranavjv/Library/Caches/pypoetry/virtualenvs/vam-vEsBr2KA-py3.13/bin/python3",
+  "codePathLocal": "sweep_vadam.py",
+  "cpu_count": 10,
+  "cpu_count_logical": 10,
+  "disk": {
+    "/": {
+      "total": "994662584320",
+      "used": "692390154240"
+    },
+    "/System/Volumes/Data": {
+      "total": "994662584320",
+      "used": "692390154240"
+    }
+  },
+  "memory": {
+    "total": "17179869184"
+  },
+  "cpu": {
+    "count": 10,
+    "countLogical": 10
+  },
+  "apple": {
+    "name": "Apple M1 Pro",
+    "ecpuCores": 2,
+    "pcpuCores": 8,
+    "gpuCores": 16,
+    "memoryGb": 16,
+    "swapTotalBytes": "22548578304",
+    "ramTotalBytes": "17179869184"
+  }
+}

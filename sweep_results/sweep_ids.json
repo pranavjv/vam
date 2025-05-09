@@ -1,0 +1,17 @@
+[
+  [
+    "SimpleCNN",
+    "CIFAR10",
+    "tnkb8vsl"
+  ],
+  [
+    "MLPModel",
+    "IMDB",
+    "wi8j6166"
+  ],
+  [
+    "TransformerModel",
+    "WikiText2",
+    "xnd3kv4u"
+  ]
+]

@@ -1,0 +1,61 @@
+_wandb:
+    value:
+        cli_version: 0.19.11
+        m: []
+        python_version: 3.13.1
+        t:
+            "1":
+                - 1
+                - 40
+                - 41
+                - 55
+            "2":
+                - 1
+                - 40
+                - 41
+                - 55
+            "3":
+                - 2
+                - 14
+                - 23
+                - 55
+            "4": 3.13.1
+            "5": 0.19.11
+            "8":
+                - 5
+            "12": 0.19.11
+            "13": darwin-arm64
+batch_size:
+    value: 32
+beta1:
+    value: 0.9399071872235414
+beta2:
+    value: 0.9903913426091594
+beta3:
+    value: 0.4945426538942588
+dataset:
+    value: CIFAR10
+dataset_size:
+    value: small
+embed_dim:
+    value: 300
+epochs:
+    value: 3
+eps:
+    value: 6.239261516606482e-08
+eta:
+    value: 0.004582878125380577
+hidden_dim:
+    value: 512
+lr_cutoff:
+    value: 18
+max_seq_len:
+    value: 256
+model:
+    value: SimpleCNN
+normgrad:
+    value: false
+power:
+    value: 2
+weight_decay:
+    value: 0.006606420938910275
