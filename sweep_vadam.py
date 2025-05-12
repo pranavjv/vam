@@ -130,7 +130,7 @@ def create_vadam_sweep_config(model_type, dataset):
             'model': {'value': model_type},
             'dataset': {'value': dataset},
             'dataset_size': {'value': 'full'},
-            'epochs': {'value': 10},
+            'epochs': {'value': 100},
             'batch_size': {'value': 1024},
             
             # Scheduler Parameters (Fixed for this sweep)
@@ -144,7 +144,7 @@ def create_vadam_sweep_config(model_type, dataset):
             'beta1': {'value': 0.9},
             'beta2': {'value': 0.999},
             'beta3': {'distribution': 'uniform', 'min': 0.1, 'max': 2.0},
-            'power': {'values': [1, 2, 3]},
+            'power': {'value': 2},
             'normgrad': {'values': [True, False]},
             'lr_cutoff': {'distribution': 'int_uniform', 'min': 5, 'max': 30},
             'weight_decay': {'value': 1e-5},
@@ -184,8 +184,8 @@ def create_adam_sweep_config(model_type, dataset):
             'model': {'value': model_type},
             'dataset': {'value': dataset},
             'dataset_size': {'value': 'full'},
-            'epochs': {'value': 50},
-            'batch_size': {'value': 64},
+            'epochs': {'value': 100},
+            'batch_size': {'value': 1024},
             
             # Scheduler Parameters (Fixed, same as VADAM sweep)
             'lr_scheduler_type': {'value': 'WarmupCosineAnnealing'},

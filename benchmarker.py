@@ -287,7 +287,7 @@ class Benchmarker:
                 'eps': self.p.get('eps', 1e-8),
                 'weight_decay': self.p.get('weight_decay', 0)
             }
-            self.optimizer = torch.optim.Adam(self.model.parameters(), **adam_params)
+            self.optimizer = torch.optim.AdamW(self.model.parameters(), **adam_params)
         else:
             raise ValueError(f"Unknown optimizer: {self.p['optimizer']}")
 

@@ -6,7 +6,7 @@
   },
   "parameters": {
     "optimizer_name": {
-      "value": "VADAM"
+      "value": "ADAM"
     },
     "model": {
       "value": "SimpleCNN"
@@ -35,40 +35,21 @@
     "lr_eta_min": {
       "value": 1e-05
     },
-    "eta": {
+    "adam_lr": {
       "distribution": "log_uniform_values",
-      "min": 0.0001,
+      "min": 1e-05,
       "max": 0.1
     },
-    "beta1": {
+    "adam_beta1": {
       "value": 0.9
     },
-    "beta2": {
+    "adam_beta2": {
       "value": 0.999
     },
-    "beta3": {
-      "distribution": "uniform",
-      "min": 0.1,
-      "max": 2.0
-    },
-    "power": {
-      "value": 2
-    },
-    "normgrad": {
-      "values": [
-        true,
-        false
-      ]
-    },
-    "lr_cutoff": {
-      "distribution": "int_uniform",
-      "min": 5,
-      "max": 30
-    },
-    "weight_decay": {
+    "adam_weight_decay": {
       "value": 1e-05
     },
-    "eps": {
+    "adam_eps": {
       "value": 1e-08
     },
     "embed_dim": {
