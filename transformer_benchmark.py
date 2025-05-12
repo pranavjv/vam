@@ -6,6 +6,9 @@ import math
 import json
 from benchmarker import Benchmarker
 from datetime import datetime
+import nltk
+
+nltk.download('punkt_tab')
 
 def plot_transformer_results(results):
     """Plot the transformer benchmark results with a focus on loss and perplexity"""
@@ -119,7 +122,7 @@ def run_transformer_benchmark():
     # Define parameters for the benchmark
     params = {
         'model': 'TransformerModel',
-        'device': 'mps',  # Will automatically fall back to CPU if MPS is not available
+        'device': 'cuda',  # Will automatically fall back to CPU if MPS is not available
         'dataset': 'WikiText2',
         'dataset_size': 'large',  # Use 'small' for faster demonstration
         'batch_size': 32,
