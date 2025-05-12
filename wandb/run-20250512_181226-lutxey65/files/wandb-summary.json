@@ -1,0 +1,1 @@
+{"_step":101,"final_train_loss":1.9065355261289062e+09,"test_reward":-368084.24961289385,"optimization_metric":368084.24961289385,"_runtime":561.227582646,"train_reward":-366881.75973523,"mean_reward":-366881.75973523,"train_time":560.172304391861,"epoch":99,"_timestamp":1.7470741080928884e+09,"_wandb":{"runtime":561}}

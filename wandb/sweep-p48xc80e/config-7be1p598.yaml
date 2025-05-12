@@ -1,0 +1,34 @@
+wandb_version: 1
+
+batch_size:
+  value: 64
+beta1:
+  value: 0.9
+beta2:
+  value: 0.999
+beta3:
+  value: 0.5679305590336466
+dataset_size:
+  value: full
+entropy_coef:
+  value: 0.002834946658869128
+epochs:
+  value: 100
+eps:
+  value: 1.0e-08
+eta:
+  value: 3.8070487034818704e-05
+gamma:
+  value: 0.99
+hidden_dim:
+  value: 512
+lr_cutoff:
+  value: 27
+normgrad:
+  value: false
+optimizer_name:
+  value: VADAM
+power:
+  value: 2
+weight_decay:
+  value: 1.0e-05
