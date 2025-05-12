@@ -16,14 +16,16 @@ import text_datasets
 
 from VADAM import VADAM
 import architectures
+import rl_architectures
+import rl_environments
 
 class Benchmarker:
     def __init__(self,p= None):
         if p is None:
             p= {
-                'model': 'SimpleCNN', # 'SimpleCNN', 'TransformerModel', 'MLPModel'
+                'model': 'SimpleCNN', # 'SimpleCNN', 'TransformerModel', 'MLPModel', 'RLPolicy'
                 'device': 'mps', # 'mps' or 'cpu'
-                'dataset': 'CIFAR10', # 'CIFAR10', 'WikiText2', 'IMDB'
+                'dataset': 'CIFAR10', # 'CIFAR10', 'WikiText2', 'IMDB', 'HalfCheetah'
                 'dataset_size': 'small', # 'small' or 'full'
                 'optimizer': 'ADAM', # 'ADAM' or 'VADAM'
                 'batch_size': 128,
@@ -33,8 +35,7 @@ class Benchmarker:
                 'lr': 0.001,         # Learning rate
                 'epochs': 5          # Number of training epochs
             }
-        else:
-            self.p = p
+        self.p = p
 
         # Ensure all required parameters are in the dict
         for key, val in {
@@ -79,6 +80,10 @@ class Benchmarker:
         self.final_train_perplexity = None  # For language modeling
         self.train_time = None
         self.results = None
+        
+        # For RL
+        self.episode_rewards = []
+        self.mean_rewards = []
 
     def setup_data(self):
         if self.p['dataset'] == 'CIFAR10':
@@ -184,6 +189,16 @@ class Benchmarker:
                 self.task_type = "text_classification"
                 self.num_classes = 2  # Binary classification
 
+        elif self.p['dataset'] == 'HalfCheetah':
+            # For HalfCheetah reinforcement learning
+            self.rl_env = rl_environments.RLEnvironment(
+                env_name='HalfCheetah-v4',
+                batch_size=self.p['batch_size'],
+                device=self.device
+            )
+            self.criterion = torch.nn.MSELoss()  # For policy gradient loss
+            self.task_type = "reinforcement_learning"
+
     def setup_training(self):
         if self.p['model'] == 'SimpleCNN':
             self.model = architectures.SimpleCNN().to(self.device)
@@ -216,6 +231,25 @@ class Benchmarker:
             else:
                 raise ValueError(f"MLPModel not compatible with dataset: {self.p['dataset']}")
         
+        elif self.p['model'] == 'RLPolicy':
+            # For reinforcement learning policy
+            if self.p['dataset'] == 'HalfCheetah':
+                # Initialize policy and value networks for HalfCheetah
+                self.policy_net = rl_architectures.PolicyNetwork(
+                    input_dim=self.rl_env.state_dim,
+                    hidden_dim=self.p['hidden_dim'],
+                    output_dim=self.rl_env.action_dim
+                ).to(self.device)
+                
+                self.value_net = rl_architectures.ValueNetwork(
+                    input_dim=self.rl_env.state_dim,
+                    hidden_dim=self.p['hidden_dim']
+                ).to(self.device)
+                
+                # Reference to the policy network as the main model
+                self.model = self.policy_net
+            else:
+                raise ValueError(f"RLPolicy not compatible with dataset: {self.p['dataset']}")
         else:
             raise ValueError(f"Unknown model: {self.p['model']}")
 
@@ -233,7 +267,16 @@ class Benchmarker:
                 'normgrad': self.p.get('normgrad', True),
                 'lr_cutoff': self.p.get('lr_cutoff', 19)
             }
-            self.optimizer = VADAM(self.model.parameters(), **vadam_params)
+            
+            if self.p['model'] == 'RLPolicy':
+                # Use VADAM for both policy and value networks
+                self.policy_optimizer = VADAM(self.policy_net.parameters(), **vadam_params)
+                self.value_optimizer = VADAM(self.value_net.parameters(), **vadam_params)
+                # Reference to policy optimizer as the main optimizer
+                self.optimizer = self.policy_optimizer
+            else:
+                self.optimizer = VADAM(self.model.parameters(), **vadam_params)
+                
         elif self.p['optimizer'] == "ADAM":
             # Standard Adam parameters
             adam_params = {
@@ -242,83 +285,147 @@ class Benchmarker:
                 'eps': self.p.get('eps', 1e-8),
                 'weight_decay': self.p.get('weight_decay', 0)
             }
-            self.optimizer = torch.optim.Adam(self.model.parameters(), **adam_params)
+            
+            if self.p['model'] == 'RLPolicy':
+                # Use Adam for both policy and value networks
+                self.policy_optimizer = torch.optim.Adam(self.policy_net.parameters(), **adam_params)
+                self.value_optimizer = torch.optim.Adam(self.value_net.parameters(), **adam_params)
+                # Reference to policy optimizer as the main optimizer
+                self.optimizer = self.policy_optimizer
+            else:
+                self.optimizer = torch.optim.Adam(self.model.parameters(), **adam_params)
         else:
             raise ValueError(f"Unknown optimizer: {self.p['optimizer']}")
 
     def train_epoch(self, epoch):
-        self.model.train()
-        total_loss = 0
-        correct = 0
-        total = 0
-        
-        if self.task_type == "classification" or self.task_type == "text_classification":
-            # For image classification (CIFAR10) and text classification (IMDB)
-            if self.p['dataset'] == 'CIFAR10':
-                # Standard PyTorch DataLoader for CIFAR10
-                for batch_idx, (data, target) in enumerate(self.train_loader):
-                    data, target = data.to(self.device), target.to(self.device)
-                    
-                    self.optimizer.zero_grad()
-                    output = self.model(data)
-                    loss = self.criterion(output, target)
-                    loss.backward()
-                    self.optimizer.step()
-                    
-                    total_loss += loss.item()
-                    
-                    # Calculate accuracy
-                    pred = output.argmax(dim=1, keepdim=True)
-                    correct += pred.eq(target.view_as(pred)).sum().item()
-                    total += target.size(0)
-                    
-                    if batch_idx % 10 == 0:
-                        print(f'Train Epoch: {epoch} [{batch_idx}/{len(self.train_loader)}] Loss: {loss.item():.6f}')
-            else:
-                # For IMDB with our custom DataLoader
-                for batch_idx, batch in enumerate(self.train_loader):
-                    # Our IMDB loader returns tokenized texts, lengths, and labels
-                    texts, lengths, labels = batch
-                    
-                    # Convert texts to indices and create tensor
-                    indices = [[self.vocab[token] for token in text] for text in texts]
-                    input_tensor = torch.tensor(indices).to(self.device)
-                    labels = labels.to(self.device)
-                    
-                    self.optimizer.zero_grad()
-                    output = self.model(input_tensor)
-                    loss = self.criterion(output, labels)
-                    loss.backward()
-                    self.optimizer.step()
-                    
-                    total_loss += loss.item()
-                    
-                    # Calculate accuracy
-                    pred = output.argmax(dim=1)
-                    correct += (pred == labels).sum().item()
-                    total += labels.size(0)
-                    
-                    if batch_idx % 10 == 0:
-                        print(f'Train Epoch: {epoch} [{batch_idx}/{len(self.train_loader)}] Loss: {loss.item():.6f}')
+        if self.task_type == "reinforcement_learning":
+            # Reinforcement learning training loop
             
-            # Return average loss and accuracy
-            avg_loss = total_loss / len(self.train_loader)
-            accuracy = correct / total if total > 0 else 0
-            return avg_loss, accuracy, None  # None for perplexity
-        
-        elif self.task_type == "language_modeling":
-            # For WikiText2 language modeling
-            total_tokens = 0
+            # Sample batch of trajectories
+            batch = self.rl_env.sample_batch(self.policy_net)
             
-            for batch_idx, batch in enumerate(self.train_loader):
-                # For language modeling, batch contains input and target tensors
-                # These are already in shape [seq_len, batch_size]
-                src, targets = batch
-                src, targets = src.to(self.device), targets.to(self.device)
+            states = batch['states']
+            actions = batch['actions']
+            rewards = batch['rewards']
+            next_states = batch['next_states']
+            dones = batch['dones']
+            avg_reward = batch['avg_reward']
+            
+            # Compute returns and advantages
+            with torch.no_grad():
+                values = self.value_net(states)
+                next_values = self.value_net(next_states)
                 
-                if self.p['dataset'] == 'WikiText2':
-                    # Handle for TransformerModel
-                    self.optimizer.zero_grad()
+                # Compute returns with bootstrapping
+                returns = rewards + (1 - dones) * self.p.get('gamma', 0.99) * next_values
+                
+                # Compute advantages
+                advantages = returns - values
+                
+            # Update value network
+            self.value_optimizer.zero_grad()
+            current_values = self.value_net(states)
+            value_loss = F.mse_loss(current_values, returns.detach())
+            value_loss.backward()
+            self.value_optimizer.step()
+            
+            # Update policy network
+            self.policy_optimizer.zero_grad()
+            mean, std = self.policy_net(states)
+            dist = torch.distributions.Normal(mean, std)
+            log_probs = dist.log_prob(actions).sum(dim=1, keepdim=True)
+            
+            # Policy gradient loss
+            policy_loss = -(log_probs * advantages.detach()).mean()
+            
+            # Add entropy regularization
+            entropy = dist.entropy().mean()
+            policy_loss = policy_loss - self.p.get('entropy_coef', 0.01) * entropy
+            
+            policy_loss.backward()
+            self.policy_optimizer.step()
+            
+            # Record metrics
+            total_loss = policy_loss.item() + value_loss.item()
+            
+            print(f'Epoch {epoch} | Policy Loss: {policy_loss.item():.6f} | Value Loss: {value_loss.item():.6f} | Avg Reward: {avg_reward:.2f}')
+            
+            # Evaluate policy
+            eval_results = self.rl_env.evaluate_policy(self.policy_net)
+            self.mean_rewards.append(eval_results['mean_reward'])
+            
+            print(f'Evaluation | Mean Reward: {eval_results["mean_reward"]:.2f} | Std Reward: {eval_results["std_reward"]:.2f}')
+            
+            return total_loss, None, None
+        else:
+            self.model.train()
+            total_loss = 0
+            correct = 0
+            total = 0
+            
+            if self.task_type == "classification" or self.task_type == "text_classification":
+                # For image classification (CIFAR10) and text classification (IMDB)
+                if self.p['dataset'] == 'CIFAR10':
+                    # Standard PyTorch DataLoader for CIFAR10
+                    for batch_idx, (data, target) in enumerate(self.train_loader):
+                        data, target = data.to(self.device), target.to(self.device)
+                        
+                        self.optimizer.zero_grad()
+                        output = self.model(data)
+                        loss = self.criterion(output, target)
+                        loss.backward()
+                        self.optimizer.step()
+                        
+                        total_loss += loss.item()
+                        
+                        # Calculate accuracy
+                        pred = output.argmax(dim=1, keepdim=True)
+                        correct += pred.eq(target.view_as(pred)).sum().item()
+                        total += target.size(0)
+                        
+                        if batch_idx % 10 == 0:
+                            print(f'Train Epoch: {epoch} [{batch_idx}/{len(self.train_loader)}] Loss: {loss.item():.6f}')
+                else:
+                    # For IMDB with our custom DataLoader
+                    for batch_idx, batch in enumerate(self.train_loader):
+                        # Our IMDB loader returns tokenized texts, lengths, and labels
+                        texts, lengths, labels = batch
+                        
+                        # Convert texts to indices and create tensor
+                        indices = [[self.vocab[token] for token in text] for text in texts]
+                        input_tensor = torch.tensor(indices).to(self.device)
+                        labels = labels.to(self.device)
+                        
+                        self.optimizer.zero_grad()
+                        output = self.model(input_tensor)
+                        loss = self.criterion(output, labels)
+                        loss.backward()
+                        self.optimizer.step()
+                        
+                        total_loss += loss.item()
+                        
+                        # Calculate accuracy
+                        pred = output.argmax(dim=1)
+                        correct += (pred == labels).sum().item()
+                        total += labels.size(0)
+                        
+                        if batch_idx % 10 == 0:
+                            print(f'Train Epoch: {epoch} [{batch_idx}/{len(self.train_loader)}] Loss: {loss.item():.6f}')
+            
+                # Return average loss and accuracy
+                avg_loss = total_loss / len(self.train_loader)
+                accuracy = correct / total if total > 0 else 0
+                return avg_loss, accuracy, None  # None for perplexity
+            
+            elif self.task_type == "language_modeling":
+                # For WikiText2 language modeling
+                total_tokens = 0
+                
+                for batch_idx, batch in enumerate(self.train_loader):
+                    # For language modeling, batch contains input and target tensors
+                    # These are already in shape [seq_len, batch_size]
+                    src, targets = batch
+                    src, targets = src.to(self.device), targets.to(self.device)
                     
                     if self.p['model'] == 'TransformerModel':
                         # TransformerModel expects src and target with shape [seq_len, batch_size]
@@ -355,98 +462,107 @@ class Benchmarker:
                     if batch_idx % 5 == 0:
                         print(f'Train Epoch: {epoch} [{batch_idx}/{len(self.train_loader)}] Loss: {loss.item():.6f}')
             
-            # Calculate average loss and perplexity
-            avg_loss = total_loss / max(total_tokens, 1)
-            perplexity = math.exp(avg_loss)
-            return avg_loss, None, perplexity  # None for accuracy
-
-    def evaluate(self, data_loader):
-        """Evaluate the model on the provided data"""
-        self.model.eval()
-        total_loss = 0
-        correct = 0
-        total = 0
-        
-        with torch.no_grad():
-            if self.task_type == "classification" or self.task_type == "text_classification":
-                if self.p['dataset'] == 'CIFAR10':
-                    # Standard PyTorch DataLoader for CIFAR10
-                    for data, target in data_loader:
-                        data, target = data.to(self.device), target.to(self.device)
-                        output = self.model(data)
-                        loss = self.criterion(output, target)
-                        total_loss += loss.item() * target.size(0)
-                        
-                        # Calculate accuracy
-                        pred = output.argmax(dim=1, keepdim=True)
-                        correct += pred.eq(target.view_as(pred)).sum().item()
-                        total += target.size(0)
-                else:
-                    # For IMDB with our custom DataLoader
-                    for batch in data_loader:
-                        # Our IMDB loader returns tokenized texts, lengths, and labels
-                        texts, lengths, labels = batch
-                        
-                        # Convert texts to indices and create tensor
-                        indices = [[self.vocab[token] for token in text] for text in texts]
-                        input_tensor = torch.tensor(indices).to(self.device)
-                        labels = labels.to(self.device)
-                        
-                        output = self.model(input_tensor)
-                        loss = self.criterion(output, labels)
-                        total_loss += loss.item() * labels.size(0)
-                        
-                        # Calculate accuracy
-                        pred = output.argmax(dim=1)
-                        correct += (pred == labels).sum().item()
-                        total += labels.size(0)
-                
-                avg_loss = total_loss / max(total, 1)
-                accuracy = correct / max(total, 1)
-                return avg_loss, accuracy, None  # None for perplexity
-            
-            elif self.task_type == "language_modeling":
-                # For WikiText2 language modeling
-                total_tokens = 0
-                
-                for batch in data_loader:
-                    # For language modeling, batch contains input and target tensors
-                    # These are already in shape [seq_len, batch_size]
-                    src, targets = batch
-                    src, targets = src.to(self.device), targets.to(self.device)
-                    
-                    if self.p['model'] == 'TransformerModel':
-                        # TransformerModel expects src and target
-                        tgt = src.clone()
-                        output = self.model(src, tgt)  # output shape: [seq_len, batch_size, vocab_size]
-                        
-                        # Reshape for loss calculation
-                        output_flat = output.reshape(-1, self.vocab_size)  # [seq_len*batch_size, vocab_size]
-                        targets_flat = targets.reshape(-1)  # [seq_len*batch_size]
-                        
-                        # Calculate loss
-                        loss = self.criterion(output_flat, targets_flat)
-                    else:
-                        # Other models only need src
-                        output = self.model(src)
-                        
-                        # Reshape for loss calculation
-                        output_flat = output.reshape(-1, self.vocab_size)
-                        targets_flat = targets.reshape(-1)
-                        
-                        loss = self.criterion(output_flat, targets_flat)
-                    
-                    # Count non-padding tokens
-                    non_padding_mask = targets_flat != self.vocab['<pad>']
-                    num_tokens = non_padding_mask.int().sum().item()
-                    
-                    total_loss += loss.item() * num_tokens
-                    total_tokens += num_tokens
-                
                 # Calculate average loss and perplexity
                 avg_loss = total_loss / max(total_tokens, 1)
                 perplexity = math.exp(avg_loss)
                 return avg_loss, None, perplexity  # None for accuracy
+
+    def evaluate(self, data_loader=None):
+        """Evaluate the model on the provided data"""
+        if self.task_type == "reinforcement_learning":
+            # For RL, we evaluate the policy directly
+            self.model.eval()
+            
+            with torch.no_grad():
+                eval_results = self.rl_env.evaluate_policy(self.policy_net)
+                
+            return 0.0, eval_results['mean_reward'], None  # Use mean reward as "accuracy" for RL
+        else:
+            self.model.eval()
+            total_loss = 0
+            correct = 0
+            total = 0
+            
+            with torch.no_grad():
+                if self.task_type == "classification" or self.task_type == "text_classification":
+                    if self.p['dataset'] == 'CIFAR10':
+                        # Standard PyTorch DataLoader for CIFAR10
+                        for data, target in data_loader:
+                            data, target = data.to(self.device), target.to(self.device)
+                            output = self.model(data)
+                            loss = self.criterion(output, target)
+                            total_loss += loss.item() * target.size(0)
+                            
+                            # Calculate accuracy
+                            pred = output.argmax(dim=1, keepdim=True)
+                            correct += pred.eq(target.view_as(pred)).sum().item()
+                            total += target.size(0)
+                    else:
+                        # For IMDB with our custom DataLoader
+                        for batch in data_loader:
+                            # Our IMDB loader returns tokenized texts, lengths, and labels
+                            texts, lengths, labels = batch
+                            
+                            # Convert texts to indices and create tensor
+                            indices = [[self.vocab[token] for token in text] for text in texts]
+                            input_tensor = torch.tensor(indices).to(self.device)
+                            labels = labels.to(self.device)
+                            
+                            output = self.model(input_tensor)
+                            loss = self.criterion(output, labels)
+                            total_loss += loss.item() * labels.size(0)
+                            
+                            # Calculate accuracy
+                            pred = output.argmax(dim=1)
+                            correct += (pred == labels).sum().item()
+                            total += labels.size(0)
+                
+                    avg_loss = total_loss / max(total, 1)
+                    accuracy = correct / max(total, 1)
+                    return avg_loss, accuracy, None  # None for perplexity
+                
+                elif self.task_type == "language_modeling":
+                    # For WikiText2 language modeling
+                    total_tokens = 0
+                    
+                    for batch in data_loader:
+                        # For language modeling, batch contains input and target tensors
+                        # These are already in shape [seq_len, batch_size]
+                        src, targets = batch
+                        src, targets = src.to(self.device), targets.to(self.device)
+                        
+                        if self.p['model'] == 'TransformerModel':
+                            # TransformerModel expects src and target
+                            tgt = src.clone()
+                            output = self.model(src, tgt)  # output shape: [seq_len, batch_size, vocab_size]
+                            
+                            # Reshape for loss calculation
+                            output_flat = output.reshape(-1, self.vocab_size)  # [seq_len*batch_size, vocab_size]
+                            targets_flat = targets.reshape(-1)  # [seq_len*batch_size]
+                            
+                            # Calculate loss
+                            loss = self.criterion(output_flat, targets_flat)
+                        else:
+                            # Other models only need src
+                            output = self.model(src)
+                            
+                            # Reshape for loss calculation
+                            output_flat = output.reshape(-1, self.vocab_size)
+                            targets_flat = targets.reshape(-1)
+                            
+                            loss = self.criterion(output_flat, targets_flat)
+                        
+                        # Count non-padding tokens
+                        non_padding_mask = targets_flat != self.vocab['<pad>']
+                        num_tokens = non_padding_mask.int().sum().item()
+                        
+                        total_loss += loss.item() * num_tokens
+                        total_tokens += num_tokens
+                    
+                    # Calculate average loss and perplexity
+                    avg_loss = total_loss / max(total_tokens, 1)
+                    perplexity = math.exp(avg_loss)
+                    return avg_loss, None, perplexity  # None for accuracy
 
     def run(self):
         """Run the benchmark and track all metrics"""
@@ -464,36 +580,48 @@ class Benchmarker:
             if train_ppl is not None:
                 self.train_perplexities.append(train_ppl)
             
-            # Validate
-            val_loss, val_acc, val_ppl = self.evaluate(self.val_loader)
-            self.val_losses.append(val_loss)
-            
-            if val_acc is not None:
-                self.val_accs.append(val_acc)
-            if val_ppl is not None:
-                self.val_perplexities.append(val_ppl)
-            
-            # Print epoch results
-            if self.task_type == "language_modeling":
-                print(f'Epoch {epoch} | Train Loss: {train_loss:.6f} | Train PPL: {train_ppl:.2f} | Val Loss: {val_loss:.6f} | Val PPL: {val_ppl:.2f}')
-            else:
-                print(f'Epoch {epoch} | Train Loss: {train_loss:.6f} | Train Acc: {train_acc:.4f} | Val Loss: {val_loss:.6f} | Val Acc: {val_acc:.4f}')
+            # Validate (only for non-RL tasks)
+            if self.task_type != "reinforcement_learning":
+                val_loss, val_acc, val_ppl = self.evaluate(self.val_loader)
+                self.val_losses.append(val_loss)
+                
+                if val_acc is not None:
+                    self.val_accs.append(val_acc)
+                if val_ppl is not None:
+                    self.val_perplexities.append(val_ppl)
+                
+                # Print epoch results
+                if self.task_type == "language_modeling":
+                    print(f'Epoch {epoch} | Train Loss: {train_loss:.6f} | Train PPL: {train_ppl:.2f} | Val Loss: {val_loss:.6f} | Val PPL: {val_ppl:.2f}')
+                else:
+                    print(f'Epoch {epoch} | Train Loss: {train_loss:.6f} | Train Acc: {train_acc:.4f} | Val Loss: {val_loss:.6f} | Val Acc: {val_acc:.4f}')
         
         # Evaluate on the training data for final metrics
-        self.final_train_loss, self.final_train_acc, self.final_train_perplexity = self.evaluate(self.train_loader)
-        
-        if self.task_type == "language_modeling":
-            print(f'Final Train Loss: {self.final_train_loss:.6f} | Final Train PPL: {self.final_train_perplexity:.2f}')
+        if self.task_type == "reinforcement_learning":
+            # For RL, we already have the metrics from the last training epoch
+            self.final_train_loss = self.train_losses[-1]
+            self.final_train_acc = self.mean_rewards[-1]  # Use last mean reward as final "accuracy"
+            
+            # Evaluate on test (more episodes for final evaluation)
+            _, self.test_acc, _ = self.evaluate()
+            self.test_loss = 0.0  # Not relevant for RL
+            
+            print(f'Final Mean Reward: {self.final_train_acc:.2f} | Test Mean Reward: {self.test_acc:.2f}')
         else:
-            print(f'Final Train Loss: {self.final_train_loss:.6f} | Final Train Acc: {self.final_train_acc:.4f}')
-                
-        # Evaluate on test data
-        self.test_loss, self.test_acc, self.test_perplexity = self.evaluate(self.test_loader)
-        
-        if self.task_type == "language_modeling":
-            print(f'Test Loss: {self.test_loss:.6f} | Test PPL: {self.test_perplexity:.2f}')
-        else:
-            print(f'Test Loss: {self.test_loss:.6f} | Test Acc: {self.test_acc:.4f}')
+            self.final_train_loss, self.final_train_acc, self.final_train_perplexity = self.evaluate(self.train_loader)
+            
+            if self.task_type == "language_modeling":
+                print(f'Final Train Loss: {self.final_train_loss:.6f} | Final Train PPL: {self.final_train_perplexity:.2f}')
+            else:
+                print(f'Final Train Loss: {self.final_train_loss:.6f} | Final Train Acc: {self.final_train_acc:.4f}')
+                    
+            # Evaluate on test data
+            self.test_loss, self.test_acc, self.test_perplexity = self.evaluate(self.test_loader)
+            
+            if self.task_type == "language_modeling":
+                print(f'Test Loss: {self.test_loss:.6f} | Test PPL: {self.test_perplexity:.2f}')
+            else:
+                print(f'Test Loss: {self.test_loss:.6f} | Test Acc: {self.test_acc:.4f}')
         
         self.train_time = time.time() - start_time
         
@@ -514,5 +642,11 @@ class Benchmarker:
             'test_perplexity': self.test_perplexity,
             'train_time': self.train_time
         }
+        
+        # Add RL-specific metrics if applicable
+        if self.task_type == "reinforcement_learning":
+            self.results.update({
+                'mean_rewards': self.mean_rewards,
+            })
         
         return self.results

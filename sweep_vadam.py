@@ -40,6 +40,13 @@ def train_model(config=None):
             'eps': config.eps
         }
         
+        # Add RL specific parameters if needed
+        if config.dataset == 'HalfCheetah':
+            params.update({
+                'gamma': config.gamma,  # Discount factor
+                'entropy_coef': config.entropy_coef  # Entropy coefficient for exploration
+            })
+        
         # Create and run benchmarker
         print(f"Running benchmark with params: {params}")
         benchmark = Benchmarker(params)
@@ -63,6 +70,21 @@ def train_model(config=None):
                     "train_loss": loss,
                     "train_perplexity": perplexity
                 })
+        elif benchmark.task_type == "reinforcement_learning":
+            wandb.log({
+                "final_train_loss": results['final_train_loss'],
+                "final_mean_reward": results['final_train_acc'],  # Mean reward is stored as "train_acc"
+                "test_mean_reward": results['test_acc'],
+                "train_time": results['train_time']
+            })
+            
+            # Track training curves
+            for epoch, (loss, reward) in enumerate(zip(results['train_losses'], results['mean_rewards'])):
+                wandb.log({
+                    "epoch": epoch,
+                    "train_loss": loss,
+                    "mean_reward": reward
+                })
                 
         else:  # Classification tasks
             wandb.log({
@@ -85,6 +107,10 @@ def train_model(config=None):
         if benchmark.task_type == "language_modeling":
             # For language modeling, lower perplexity is better
             optimization_metric = results['test_perplexity']
+        elif benchmark.task_type == "reinforcement_learning":
+            # For RL, higher reward is better, but W&B minimizes by default
+            # so we negate the reward
+            optimization_metric = -results['test_acc']
         else:
             # For classification, higher accuracy is better, but W&B minimizes by default
             # so we negate the accuracy
@@ -100,7 +126,7 @@ def create_sweep_config(model_type, dataset):
         'method': 'bayes',  # Use Bayesian optimization
         'metric': {
             'name': 'optimization_metric',
-            'goal': 'minimize'  # We'll use negative accuracy for classification
+            'goal': 'minimize'  # We'll use negative accuracy or reward for classification and RL
         },
         'parameters': {
             # Fixed parameters
@@ -132,6 +158,14 @@ def create_sweep_config(model_type, dataset):
             'hidden_dim': {'values': [256, 512, 768, 1024]},
             'max_seq_len': {'values': [64, 128, 256]},
         })
+    elif model_type == 'RLPolicy':
+        sweep_config['parameters'].update({
+            'hidden_dim': {'values': [64, 128, 256, 512]},
+            'gamma': {'distribution': 'uniform', 'min': 0.9, 'max': 0.999},
+            'entropy_coef': {'distribution': 'uniform', 'min': 0.0001, 'max': 0.1},
+            'embed_dim': {'value': 300},  # Not used for RL but required by the API
+            'max_seq_len': {'value': 256},  # Not used for RL but required by the API
+        })
     else:
         # Add default values for SimpleCNN
         sweep_config['parameters'].update({
@@ -148,7 +182,8 @@ def run_sweeps():
     model_dataset_pairs = [
         ('SimpleCNN', 'CIFAR10'),
         ('MLPModel', 'IMDB'),
-        ('TransformerModel', 'WikiText2')
+        ('TransformerModel', 'WikiText2'),
+        ('RLPolicy', 'HalfCheetah')  # Add the new RL task
     ]
     
     # Set up wandb project

@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from benchmarker import Benchmarker
 from datetime import datetime
+from diffusion_benchmark import compare_optimizers as compare_diffusion_optimizers
 
 def plot_results(results, title, filename):
     """Plot and save comprehensive comparison charts for optimizer performance"""
@@ -366,6 +367,50 @@ def run_all_benchmarks():
             all_results[f"{config['dataset']}_{config['model']}"] = results
         except Exception as e:
             print(f"Error running benchmark for {config['model']} on {config['dataset']}: {e}")
+    
+    # Run diffusion model benchmark with MNIST
+    print(f"\n{'='*50}")
+    print(f"Running benchmark for Diffusion Model on MNIST")
+    print(f"{'='*50}\n")
+    
+    try:
+        # Diffusion model specific parameters
+        diffusion_params = {
+            'device': base_params['device'],
+            'dataset_size': 'small',
+            'batch_size': 64,
+            'lr': 0.0002,  # Specific learning rate for diffusion
+            'epochs': 5,  # Reduced epochs for diffusion model
+            'unet_base_channels': 64,  # Enhanced model architecture
+            'unet_time_embed_dim': 128,  # Enhanced model architecture
+            'num_timesteps': 200,  # Reduced timesteps for faster benchmarking
+            'beta_min': 1e-4,
+            'beta_max': 0.02,
+            'sample_every': 1,  # Generate samples every epoch
+            'eval_batch_size': 16,
+            'fid_batch_size': 32,
+            'fid_num_samples': 250,  # Use fewer samples for faster FID calculation
+            
+            # Optimizer specific parameters
+            'adam_beta1': base_params['adam_beta1'],
+            'adam_beta2': base_params['adam_beta2'],
+            'adam_eps': base_params['adam_eps'],
+            'adam_weight_decay': base_params['adam_weight_decay'],
+            'vadam_eta': 0.0002,  # Specific for diffusion
+            'vadam_beta1': base_params['vadam_beta1'],
+            'vadam_beta2': base_params['vadam_beta2'],
+            'vadam_beta3': base_params['vadam_beta3'],
+            'vadam_eps': base_params['vadam_eps'],
+            'vadam_weight_decay': base_params['vadam_weight_decay'],
+            'vadam_power': base_params['vadam_power'],
+            'vadam_normgrad': base_params['vadam_normgrad'],
+            'vadam_lr_cutoff': base_params['vadam_lr_cutoff']
+        }
+        
+        diffusion_results = compare_diffusion_optimizers(diffusion_params)
+        all_results["MNIST_DiffusionModel"] = diffusion_results
+    except Exception as e:
+        print(f"Error running benchmark for Diffusion Model on MNIST: {e}")
     
     # Create a summary comparison of all results
     output_dir = 'benchmark_results'
