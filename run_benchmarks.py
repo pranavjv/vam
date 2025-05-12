@@ -4,9 +4,16 @@ import os
 import time
 import matplotlib.pyplot as plt
 import numpy as np
+import argparse
 from benchmarker import Benchmarker
 from datetime import datetime
 from diffusion_benchmark import compare_optimizers as compare_diffusion_optimizers
+
+# Import benchmark modules
+from cnn_image_classification.cnn_benchmark import run_cnn_benchmark
+from transformer_language_modeling.transformer_benchmark import run_transformer_benchmark
+from rl_halfcheetah.rl_benchmark import run_rl_benchmark
+from diffusion_mnist.diffusion_benchmark import run_diffusion_benchmark
 
 def plot_results(results, title, filename):
     """Plot and save comprehensive comparison charts for optimizer performance"""
@@ -310,112 +317,82 @@ def compare_optimizers(base_params, dataset, model_type):
     
     return results
 
-def run_all_benchmarks():
+def run_all_benchmarks(device=None):
     """Run benchmarks for all configured models and datasets"""
-    # Set up base parameters
-    base_params = {
-        'device': 'mps',  # Use 'cuda' if available, otherwise 'cpu'
-        'dataset_size': 'small',  # Use 'small' for faster runs during testing
-        'batch_size': 32,
-        'max_seq_len': 128,
-        'embed_dim': 256,
-        'hidden_dim': 512,
-        
-        # General optimization parameters
-        'lr': 0.001,  # Used for Adam
-        'epochs': 3,  # Use a small number of epochs for quick testing
-        
-        # Adam specific parameters
-        'adam_beta1': 0.9,
-        'adam_beta2': 0.999,
-        'adam_eps': 1e-8,
-        'adam_weight_decay': 0,
-        
-        # VADAM specific parameters
-        'vadam_eta': 0.001,  # Max learning rate for VADAM
-        'vadam_beta1': 0.9,
-        'vadam_beta2': 0.999,
-        'vadam_beta3': 1.0,
-        'vadam_eps': 1e-8,
-        'vadam_weight_decay': 0,
-        'vadam_power': 2,
-        'vadam_normgrad': True,
-        'vadam_lr_cutoff': 19
-    }
-    
-    # Define benchmark configurations
-    configs = [
-        # Image classification
-        {'dataset': 'CIFAR10', 'model': 'SimpleCNN'},
-        
-        # Text classification
-        {'dataset': 'IMDB', 'model': 'MLPModel'},
-        
-        # Language modeling / Sentence completion
-        {'dataset': 'WikiText2', 'model': 'TransformerModel'}
-    ]
+    # Determine device
+    if device is None:
+        if torch.cuda.is_available():
+            device = 'cuda'
+            print(f"Using CUDA device: {torch.cuda.get_device_name(0)}")
+        elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+            device = 'mps'
+            print("Using MPS (Apple Silicon)")
+        else:
+            device = 'cpu'
+            print("Using CPU")
     
     all_results = {}
     
-    for config in configs:
-        print(f"\n{'='*50}")
-        print(f"Running benchmark for {config['model']} on {config['dataset']}")
-        print(f"{'='*50}\n")
-        
-        try:
-            results = compare_optimizers(base_params, config['dataset'], config['model'])
-            all_results[f"{config['dataset']}_{config['model']}"] = results
-        except Exception as e:
-            print(f"Error running benchmark for {config['model']} on {config['dataset']}: {e}")
+    # Create benchmark_results directory if it doesn't exist
+    os.makedirs('benchmark_results', exist_ok=True)
     
-    # Run diffusion model benchmark with MNIST
+    print("\nStarting benchmarks...\n")
+    print("This will compare ADAM and VADAM optimizers across multiple models and datasets")
+    print("Results will be saved to the benchmark_results directory\n")
+    
+    total_start_time = time.time()
+    
+    # Run CNN on CIFAR10
+    print(f"\n{'='*50}")
+    print(f"Running benchmark for CNN on CIFAR10")
+    print(f"{'='*50}\n")
+    try:
+        cnn_results = run_cnn_benchmark()
+        all_results["CIFAR10_CNN"] = cnn_results
+    except Exception as e:
+        print(f"Error running CNN benchmark: {e}")
+        import traceback
+        traceback.print_exc()
+    
+    # Run Transformer on WikiText2
+    print(f"\n{'='*50}")
+    print(f"Running benchmark for Transformer on WikiText2")
+    print(f"{'='*50}\n")
+    try:
+        transformer_results = run_transformer_benchmark()
+        all_results["WikiText2_Transformer"] = transformer_results
+    except Exception as e:
+        print(f"Error running Transformer benchmark: {e}")
+        import traceback
+        traceback.print_exc()
+    
+    # Run RL on HalfCheetah
+    print(f"\n{'='*50}")
+    print(f"Running benchmark for RL on HalfCheetah")
+    print(f"{'='*50}\n")
+    try:
+        rl_results = run_rl_benchmark(epochs=10)  # Reduced epochs for faster benchmarking
+        all_results["HalfCheetah_RL"] = rl_results
+    except Exception as e:
+        print(f"Error running RL benchmark: {e}")
+        import traceback
+        traceback.print_exc()
+    
+    # Run Diffusion Model on MNIST
     print(f"\n{'='*50}")
     print(f"Running benchmark for Diffusion Model on MNIST")
     print(f"{'='*50}\n")
-    
     try:
-        # Diffusion model specific parameters
-        diffusion_params = {
-            'device': base_params['device'],
-            'dataset_size': 'small',
-            'batch_size': 64,
-            'lr': 0.0002,  # Specific learning rate for diffusion
-            'epochs': 5,  # Reduced epochs for diffusion model
-            'unet_base_channels': 64,  # Enhanced model architecture
-            'unet_time_embed_dim': 128,  # Enhanced model architecture
-            'num_timesteps': 200,  # Reduced timesteps for faster benchmarking
-            'beta_min': 1e-4,
-            'beta_max': 0.02,
-            'sample_every': 1,  # Generate samples every epoch
-            'eval_batch_size': 16,
-            'fid_batch_size': 32,
-            'fid_num_samples': 250,  # Use fewer samples for faster FID calculation
-            
-            # Optimizer specific parameters
-            'adam_beta1': base_params['adam_beta1'],
-            'adam_beta2': base_params['adam_beta2'],
-            'adam_eps': base_params['adam_eps'],
-            'adam_weight_decay': base_params['adam_weight_decay'],
-            'vadam_eta': 0.0002,  # Specific for diffusion
-            'vadam_beta1': base_params['vadam_beta1'],
-            'vadam_beta2': base_params['vadam_beta2'],
-            'vadam_beta3': base_params['vadam_beta3'],
-            'vadam_eps': base_params['vadam_eps'],
-            'vadam_weight_decay': base_params['vadam_weight_decay'],
-            'vadam_power': base_params['vadam_power'],
-            'vadam_normgrad': base_params['vadam_normgrad'],
-            'vadam_lr_cutoff': base_params['vadam_lr_cutoff']
-        }
-        
-        diffusion_results = compare_diffusion_optimizers(diffusion_params)
-        all_results["MNIST_DiffusionModel"] = diffusion_results
+        diffusion_results = run_diffusion_benchmark()
+        all_results["MNIST_Diffusion"] = diffusion_results
     except Exception as e:
-        print(f"Error running benchmark for Diffusion Model on MNIST: {e}")
+        print(f"Error running Diffusion benchmark: {e}")
+        import traceback
+        traceback.print_exc()
     
     # Create a summary comparison of all results
-    output_dir = 'benchmark_results'
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    summary_file = os.path.join(output_dir, f"optimizer_summary_{timestamp}.txt")
+    summary_file = os.path.join('benchmark_results', f"optimizer_summary_{timestamp}.txt")
     
     with open(summary_file, 'w') as f:
         f.write("OPTIMIZER BENCHMARK SUMMARY\n")
@@ -437,6 +414,9 @@ def run_all_benchmarks():
                 
             if 'test_perplexity' in adam and adam['test_perplexity'] is not None:
                 f.write(f"Test Perplexity: ADAM = {adam['test_perplexity']:.2f}, VADAM = {vadam['test_perplexity']:.2f}\n")
+
+            if 'final_fid_score' in adam and adam['final_fid_score'] is not None:
+                f.write(f"FID Score: ADAM = {adam['final_fid_score']:.4f}, VADAM = {vadam['final_fid_score']:.4f}\n")
                 
             f.write(f"Training Time: ADAM = {adam['train_time']:.2f}s, VADAM = {vadam['train_time']:.2f}s\n")
             
@@ -460,30 +440,61 @@ def run_all_benchmarks():
             f.write("\n" + "="*50 + "\n\n")
             
     print(f"\nFull benchmark summary written to {summary_file}")
+    
+    total_time = time.time() - total_start_time
+    print(f"\nAll benchmarks completed in {total_time:.2f} seconds ({total_time/60:.2f} minutes)")
+    
     return all_results
 
+def run_specific_benchmark(model_name):
+    """Run a specific benchmark"""
+    if model_name.upper() == 'CNN':
+        print(f"\n{'='*50}")
+        print(f"Running benchmark for CNN on CIFAR10")
+        print(f"{'='*50}\n")
+        return run_cnn_benchmark()
+    elif model_name.upper() == 'TRANSFORMER':
+        print(f"\n{'='*50}")
+        print(f"Running benchmark for Transformer on WikiText2")
+        print(f"{'='*50}\n")
+        return run_transformer_benchmark()
+    elif model_name.upper() == 'RL':
+        print(f"\n{'='*50}")
+        print(f"Running benchmark for RL on HalfCheetah")
+        print(f"{'='*50}\n")
+        return run_rl_benchmark()
+    elif model_name.upper() == 'DIFFUSION':
+        print(f"\n{'='*50}")
+        print(f"Running benchmark for Diffusion Model on MNIST")
+        print(f"{'='*50}\n")
+        return run_diffusion_benchmark()
+    else:
+        raise ValueError(f"Unknown benchmark: {model_name}")
+
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run benchmarks comparing ADAM and VADAM")
+    parser.add_argument("--model", type=str, choices=["CNN", "Transformer", "RL", "Diffusion", "all"],
+                      help="Which model to benchmark (default: all)", default="all")
+    
+    args = parser.parse_args()
+    
     # Determine the best available device
     if torch.cuda.is_available():
         device = 'cuda'
         print(f"Using CUDA device: {torch.cuda.get_device_name(0)}")
-    elif hasattr(torch, 'backends') and hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+    elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
         device = 'mps'
         print("Using MPS (Apple Silicon)")
     else:
         device = 'cpu'
         print("Using CPU")
     
-    # Create benchmark_results directory if it doesn't exist
-    os.makedirs('benchmark_results', exist_ok=True)
-    
-    print("\nStarting benchmarks...\n")
-    print("This will compare ADAM and VADAM optimizers across multiple models and datasets")
-    print("Results will be saved to the benchmark_results directory\n")
-    
     start_time = time.time()
     
-    all_results = run_all_benchmarks()
+    if args.model.lower() == 'all':
+        all_results = run_all_benchmarks(device)
+    else:
+        results = run_specific_benchmark(args.model)
     
     total_time = time.time() - start_time
-    print(f"\nAll benchmarks completed in {total_time:.2f} seconds") 
+    print(f"\nBenchmarks completed in {total_time:.2f} seconds ({total_time/60:.2f} minutes)") 

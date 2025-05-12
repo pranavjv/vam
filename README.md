@@ -1,169 +1,95 @@
-# VAM Optimizer Benchmarking
+# VADAM Benchmarking Framework
 
-This repository contains code to benchmark the VAM (Variational Adam) optimizer against standard Adam optimizer across different model architectures and datasets.
+This repository contains a comprehensive benchmarking framework for comparing the ADAM and VADAM optimizers across various deep learning tasks.
 
-## Models Implemented
+## Project Structure
 
-- **SimpleCNN**: A basic CNN model for image classification
-- **TransformerModel**: A transformer model for language modeling/sentence completion
-- **MLPModel**: A simple MLP model for text classification
-- **RLPolicy**: A policy network for reinforcement learning tasks
-
-## Datasets
-
-- **CIFAR10**: Image classification dataset
-- **WikiText2**: Text dataset for language modeling (sentence completion)
-- **IMDB**: Text classification dataset for sentiment analysis
-- **HalfCheetah**: Reinforcement learning environment for continuous control
-
-## Requirements
+The project is organized into separate modules for each benchmark task:
 
 ```
-torch
-torchvision
-torchtext
-nltk
-matplotlib
-numpy
-wandb
-gymnasium
-scikit-learn
-tqdm
-datasets
-pillow
+vam/
+├── benchmarker.py              # Core benchmarking functionality
+├── VADAM.py                    # VADAM optimizer implementation
+├── architectures.py            # Common model architectures
+├── run_benchmarks.py           # Main script to run all benchmarks
+├── run_sweep_agent.py          # Script to run hyperparameter sweeps
+│
+├── cnn_image_classification/   # CNN on CIFAR10
+│   ├── cnn_benchmark.py        # CNN benchmark script
+│   └── sweep_cnn.py            # W&B sweep configuration for CNN
+│
+├── transformer_language_modeling/  # Transformer on WikiText2
+│   ├── transformer_benchmark.py    # Transformer benchmark script
+│   └── sweep_transformer.py        # W&B sweep configuration for Transformer
+│
+├── rl_halfcheetah/             # RL on HalfCheetah environment
+│   ├── rl_benchmark.py         # RL benchmark script
+│   └── sweep_rl.py             # W&B sweep configuration for RL
+│
+├── diffusion_mnist/            # Diffusion model on MNIST
+│   ├── diffusion_benchmark.py  # Diffusion benchmark script
+│   └── sweep_diffusion.py      # W&B sweep configuration for Diffusion
+│
+├── data/                       # Dataset storage
+├── benchmark_results/          # Output files from benchmarks
+├── diffusion_samples/          # Generated samples from diffusion models
+└── sweep_results/              # W&B sweep configurations and results
 ```
 
-## Usage
+## Benchmarks
 
-To run the benchmark comparison between VAM and Adam optimizers:
+The framework includes the following benchmarks:
+
+1. **CNN for Image Classification**: Trains a simple CNN on the CIFAR10 dataset for image classification.
+2. **Transformer for Language Modeling**: Trains a transformer model on the WikiText2 dataset for language modeling.
+3. **RL for Control**: Trains a policy network on the HalfCheetah environment for reinforcement learning.
+4. **Diffusion Model**: Trains a diffusion model on the MNIST dataset for image generation.
+
+## Running Benchmarks
+
+To run all benchmarks:
 
 ```bash
 python run_benchmarks.py
 ```
 
-This will:
-1. Run benchmarks for all model/dataset combinations
-2. Compare performance between VAM and Adam optimizers
-3. Save results and plots in the `benchmark_results` directory
-
-### Reinforcement Learning Benchmark
-
-To run the RL benchmark comparing VADAM and Adam:
+To run a specific benchmark:
 
 ```bash
-python rl_benchmark.py
+python run_benchmarks.py --model CNN  # Options: CNN, Transformer, RL, Diffusion
 ```
 
-This will:
-1. Train policy networks on the HalfCheetah environment using both VADAM and Adam
-2. Compare performance metrics including mean rewards and training time
-3. Generate plots showing the training progress
+## Hyperparameter Sweeps
 
-To test just the HalfCheetah environment with a specific optimizer:
+The framework integrates with Weights & Biases for hyperparameter optimization. For each benchmark, we can sweep:
+
+- For Adam: only the learning rate
+- For VADAM: learning rate (eta), beta3 and lr_cutoff parameters
+
+To run a sweep:
 
 ```bash
-python test_halfcheetah.py --optimizer VADAM  # or ADAM
+python run_sweep_agent.py --model CNN --optimizer vadam  # Options for model: CNN, Transformer, RL, Diffusion
+                                                         # Options for optimizer: adam, vadam, both
 ```
 
-### Visualizing HalfCheetah Performance
+## Results and Analysis
 
-To visualize the performance of trained policies in the HalfCheetah environment:
+Benchmark results are saved in the `benchmark_results` directory. Each benchmark run produces:
 
-```bash
-python render_halfcheetah.py
-```
-
-This will:
-1. Load or train models for both VADAM and Adam optimizers
-2. Record animations of the HalfCheetah agent's performance
-3. Save individual GIFs and a side-by-side comparison to the `animations` directory
-
-Additional options:
-```bash
-# Visualize a specific optimizer
-python render_halfcheetah.py --optimizer VADAM  # or ADAM
-
-# Force training new models instead of loading existing ones
-python render_halfcheetah.py --train
-
-# Specify device to use
-python render_halfcheetah.py --device cpu  # or cuda, mps
-
-# Change number of episodes to record
-python render_halfcheetah.py --episodes 5
-```
-
-## Customization
-
-You can modify the benchmark parameters in `run_benchmarks.py`:
-
-```python
-base_params = {
-    'device': 'mps',  # Use 'cuda' if available, otherwise 'cpu'
-    'dataset_size': 'small',  # Use 'small' for faster runs or 'full' for complete dataset
-    'batch_size': 32,
-    'max_seq_len': 128,
-    'embed_dim': 256,
-    'hidden_dim': 512,
-    'lr': 0.001,
-    'epochs': 3  # Increase for better results
-}
-```
-
-For RL benchmarks, you can customize parameters in `rl_benchmark.py`:
-
-```python
-run_rl_benchmark(
-    model='RLPolicy',
-    dataset='HalfCheetah',
-    hidden_dim=256,
-    epochs=30,
-    batch_size=64,
-    seed=42
-)
-```
-
-## Single Model Benchmark
-
-To benchmark a specific model and dataset:
-
-```python
-from benchmarker import Benchmarker
-
-# Define parameters
-params = {
-    'model': 'TransformerModel',
-    'device': 'mps',
-    'dataset': 'WikiText2',
-    'dataset_size': 'small',
-    'optimizer': 'VADAM',
-    'batch_size': 32,
-    'max_seq_len': 128,
-    'embed_dim': 256,
-    'hidden_dim': 512,
-    'lr': 0.001,
-    'epochs': 5
-}
-
-# Run benchmark
-benchmark = Benchmarker(params)
-results = benchmark.run()
-print(results)
-```
-
-## Results
-
-The benchmark will generate:
 - JSON files with detailed metrics
-- Plot images comparing loss curves and performance metrics
-- Console output with training progress
+- PNG files with performance charts
+- Summary text files comparing ADAM and VADAM
 
-For reinforcement learning, the plots will show:
-- Mean reward per epoch for both optimizers
-- Training loss curves
-- Animations of agent performance (when using `render_halfcheetah.py`)
+## Requirements
 
-## About the Optimizers
+The major dependencies for this project are:
 
-- **Adam**: Standard Adam optimizer from PyTorch
-- **VADAM (Variational Adam)**: Implementation of the Variational Adam optimizer which combines variational inference techniques with Adam optimization
+- PyTorch
+- NumPy
+- Matplotlib
+- Weights & Biases
+- NLTK (for text processing)
+- OpenAI Gym (for RL environments)
+
+See `requirements.txt` for a complete list of dependencies.

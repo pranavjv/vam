@@ -6,7 +6,11 @@ import argparse
 import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
+import sys
 from matplotlib.animation import FuncAnimation, PillowWriter
+
+# Add parent directory to path for imports
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from benchmarker import Benchmarker
 from rl_architectures import PolicyNetwork
 
@@ -28,7 +32,7 @@ def load_or_train_model(optimizer_type, device=None, load_existing=True, save_mo
         device = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
     
     # Define model path
-    model_dir = "saved_models"
+    model_dir = "../saved_models"
     os.makedirs(model_dir, exist_ok=True)
     model_path = os.path.join(model_dir, f"halfcheetah_{optimizer_type.lower()}.pt")
     
@@ -199,7 +203,7 @@ def compare_optimizers(device=None, load_existing=True, save_models=True, episod
     adam_policy = load_or_train_model('ADAM', device, load_existing, save_models)
     
     # Create output directory
-    output_dir = "animations"
+    output_dir = "../animations"
     os.makedirs(output_dir, exist_ok=True)
     
     # Record animations
@@ -269,6 +273,6 @@ if __name__ == "__main__":
         frames, avg_reward = record_animation(policy_net, args.optimizer, args.episodes)
         
         # Save animation
-        output_dir = "animations"
+        output_dir = "../animations"
         os.makedirs(output_dir, exist_ok=True)
         save_animation(frames, os.path.join(output_dir, f'halfcheetah_{args.optimizer.lower()}.gif')) 
