@@ -272,7 +272,7 @@ class Benchmarker:
                 'beta2': self.p.get('beta2', 0.999),
                 'beta3': self.p.get('beta3', 1.0),
                 'lr': self.p.get('lr', 0.001),  # Use lr from params as base eta
-                'eps': self.p.get('', 1e-8),
+                'eps': self.p.get('eps', 1e-8),
                 'weight_decay': self.p.get('weight_decay', 0),
                 'power': self.p.get('power', 2),
                 'normgrad': self.p.get('normgrad', True),
