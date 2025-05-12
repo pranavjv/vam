@@ -10,6 +10,7 @@ import numpy as np
 import os
 import time
 import math
+from torch.optim import lr_scheduler
 
 # Import our custom text dataset implementations
 import text_datasets
@@ -17,39 +18,47 @@ import text_datasets
 from VADAM import VADAM
 import architectures
 
+# Import optimizers and schedulers
+from torch.optim.lr_scheduler import SequentialLR, LinearLR, CosineAnnealingLR, CosineAnnealingWarmRestarts, StepLR
+
 class Benchmarker:
     def __init__(self,p= None):
+        # Add scheduler defaults
+        default_params = {
+            'model': 'SimpleCNN', # 'SimpleCNN', 'TransformerModel', 'MLPModel'
+            'device': 'mps', # 'mps' or 'cpu'
+            'dataset': 'CIFAR10', # 'CIFAR10', 'WikiText2', 'IMDB'
+            'dataset_size': 'small', # 'small' or 'full'
+            'optimizer': 'ADAM', # 'ADAM' or 'VADAM'
+            'batch_size': 128,
+            'max_seq_len': 256,  # For NLP tasks
+            'embed_dim': 300,    # For MLP and Transformer models
+            'hidden_dim': 512,   # For MLP model
+            'lr': 0.001,         # Learning rate
+            'epochs': 100,       # Number of training epochs
+            # --- Scheduler params (replacing StepLR) ---
+            'lr_scheduler_type': None, # e.g., 'WarmupCosineAnnealing'
+            # Cosine Annealing specific
+            'lr_eta_min': 1e-6,    # Minimum learning rate for cosine part
+            # Warmup specific
+            'lr_warmup_epochs': 5,  # Default warmup epochs
+            'lr_warmup_factor': 0.0, # Default starting LR factor (as per example)
+            # --- Add Seed --- 
+            'seed': 0, # Set to an integer for reproducible initialization
+            # Parameters needed ONLY for other schedulers (StepLR, CosineAnnealingWarmRestarts)
+            'lr_step_size': 10,
+            'lr_gamma': 0.1,
+            'lr_T_0': 10,
+            'lr_T_mult': 1,
+        }
+
         if p is None:
-            p= {
-                'model': 'SimpleCNN', # 'SimpleCNN', 'TransformerModel', 'MLPModel'
-                'device': 'mps', # 'mps' or 'cpu'
-                'dataset': 'CIFAR10', # 'CIFAR10', 'WikiText2', 'IMDB'
-                'dataset_size': 'small', # 'small' or 'full'
-                'optimizer': 'ADAM', # 'ADAM' or 'VADAM'
-                'batch_size': 128,
-                'max_seq_len': 256,  # For NLP tasks
-                'embed_dim': 300,    # For MLP and Transformer models
-                'hidden_dim': 512,   # For MLP model
-                'lr': 0.001,         # Learning rate
-                'epochs': 5          # Number of training epochs
-            }
+            p = default_params.copy() # Use copy to avoid modifying default dict
         else:
             self.p = p
 
-        # Ensure all required parameters are in the dict
-        for key, val in {
-            'model': 'SimpleCNN',
-            'device': 'mps',
-            'dataset': 'CIFAR10',
-            'dataset_size': 'small',
-            'optimizer': 'ADAM',
-            'batch_size': 128,
-            'max_seq_len': 256,
-            'embed_dim': 300,
-            'hidden_dim': 512,
-            'lr': 0.001,
-            'epochs': 5
-        }.items():
+        # Ensure all required parameters (including scheduler ones) are in the dict
+        for key, val in default_params.items():
             if key not in self.p:
                 self.p[key] = val
 
@@ -79,6 +88,27 @@ class Benchmarker:
         self.final_train_perplexity = None  # For language modeling
         self.train_time = None
         self.results = None
+
+        
+
+        
+
+        # --- Set Seed for Reproducible Weight Initialization ---
+        seed = self.p.get('seed')
+        if seed is not None:
+            print(f"Setting random seed to {seed} for model initialization.")
+            torch.manual_seed(seed)
+            if torch.cuda.is_available():
+                torch.cuda.manual_seed(seed)
+                torch.cuda.manual_seed_all(seed) # for multi-GPU
+            np.random.seed(seed)
+            # Ensure deterministic algorithms are used
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False
+        else:
+             # If no seed, allow non-deterministic algorithms
+             torch.backends.cudnn.deterministic = False
+             torch.backends.cudnn.benchmark = True # Can improve performance
 
     def setup_data(self):
         if self.p['dataset'] == 'CIFAR10':
@@ -185,9 +215,26 @@ class Benchmarker:
                 self.num_classes = 2  # Binary classification
 
     def setup_training(self):
+        # --- Set Seed for Reproducible Weight Initialization ---
+        seed = self.p.get('seed')
+        if seed is not None:
+            print(f"Setting random seed to {seed} for model initialization.")
+            torch.manual_seed(seed)
+            if torch.cuda.is_available():
+                torch.cuda.manual_seed(seed)
+                torch.cuda.manual_seed_all(seed) # for multi-GPU
+            np.random.seed(seed)
+            # Ensure deterministic algorithms are used
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False
+        else:
+             # If no seed, allow non-deterministic algorithms
+             torch.backends.cudnn.deterministic = False
+             torch.backends.cudnn.benchmark = True # Can improve performance
+
+        # --- Model Instantiation (AFTER setting seed) ---
         if self.p['model'] == 'SimpleCNN':
             self.model = architectures.SimpleCNN().to(self.device)
-        
         elif self.p['model'] == 'TransformerModel':
             # Setup for transformer model
             if self.p['dataset'] in ['WikiText2']:
@@ -202,7 +249,6 @@ class Benchmarker:
                 ).to(self.device)
             else:
                 raise ValueError(f"TransformerModel not compatible with dataset: {self.p['dataset']}")
-        
         elif self.p['model'] == 'MLPModel':
             # Setup for MLP model
             if self.p['dataset'] == 'IMDB':
@@ -215,19 +261,18 @@ class Benchmarker:
                 ).to(self.device)
             else:
                 raise ValueError(f"MLPModel not compatible with dataset: {self.p['dataset']}")
-        
         else:
             raise ValueError(f"Unknown model: {self.p['model']}")
 
-        # Setup optimizer
+        # --- Optimizer Setup (AFTER model instantiation) ---
         if self.p['optimizer'] == "VADAM":
             # VADAM specific parameters
             vadam_params = {
                 'beta1': self.p.get('beta1', 0.9),
                 'beta2': self.p.get('beta2', 0.999),
                 'beta3': self.p.get('beta3', 1.0),
-                'eta': self.p.get('eta', self.p.get('lr', 0.001)),  # Use eta if provided, otherwise fall back to lr
-                'eps': self.p.get('eps', 1e-8),
+                'lr': self.p.get('lr', 0.001),  # Use lr from params as base eta
+                'eps': self.p.get('', 1e-8),
                 'weight_decay': self.p.get('weight_decay', 0),
                 'power': self.p.get('power', 2),
                 'normgrad': self.p.get('normgrad', True),
@@ -245,6 +290,45 @@ class Benchmarker:
             self.optimizer = torch.optim.Adam(self.model.parameters(), **adam_params)
         else:
             raise ValueError(f"Unknown optimizer: {self.p['optimizer']}")
+
+        # --- Scheduler Setup (AFTER optimizer setup) ---
+        self.scheduler = None
+        scheduler_type = self.p.get('lr_scheduler_type')
+
+        if scheduler_type == 'WarmupCosineAnnealing':
+            warmup_epochs = self.p.get('lr_warmup_epochs', 5)
+            total_epochs = self.p.get('epochs', 100)
+            eta_min = self.p.get('lr_eta_min', 1e-6)
+            start_factor = self.p.get('lr_warmup_factor', 0.0) # Get start factor from params
+
+            if warmup_epochs >= total_epochs:
+                 print(f"Warning: warmup_epochs ({warmup_epochs}) >= total_epochs ({total_epochs}). Disabling scheduler.")
+            else:
+                # 1. Linear Warmup Scheduler
+                warmup_sched = LinearLR(
+                    self.optimizer,
+                    start_factor=start_factor,
+                    end_factor=1.0,
+                    total_iters=warmup_epochs
+                )
+                print(f"Using Linear Warmup for {warmup_epochs} epochs, start_factor={start_factor}")
+
+                # 2. Cosine Annealing Scheduler (for the rest of the epochs)
+                cosine_sched = CosineAnnealingLR(
+                    self.optimizer,
+                    T_max=total_epochs - warmup_epochs, # Correct T_max
+                    eta_min=eta_min
+                )
+                print(f"Using CosineAnnealingLR for remaining {total_epochs - warmup_epochs} epochs, eta_min={eta_min}")
+
+                # 3. Combine with SequentialLR
+                self.scheduler = SequentialLR(
+                    self.optimizer,
+                    schedulers=[warmup_sched, cosine_sched],
+                    milestones=[warmup_epochs] # Switch after warmup_epochs
+                )
+        elif scheduler_type is not None:
+            print(f"Warning: Unknown or removed scheduler type '{scheduler_type}'. No scheduler will be used.")
 
     def train_epoch(self, epoch):
         self.model.train()
@@ -359,6 +443,13 @@ class Benchmarker:
             avg_loss = total_loss / max(total_tokens, 1)
             perplexity = math.exp(avg_loss)
             return avg_loss, None, perplexity  # None for accuracy
+
+        # --- Step the scheduler after training epoch and before validation ---
+        if self.scheduler:
+            self.scheduler.step()
+            # Optional: Log current learning rate if desired
+            # current_lr = self.scheduler.get_last_lr()[0]
+            # print(f"Epoch {epoch}: LR set to {current_lr}")
 
     def evaluate(self, data_loader):
         """Evaluate the model on the provided data"""

@@ -14,11 +14,11 @@ class VADAM(Optimizer):
     """
     Velocity-Adaptive Momentum (VAM) optimizer with Adam-like behavior and weight decay according to ADAMW
     """
-    def __init__(self, params, beta1= 0.9, beta2= 0.999, beta3= 1, eta= 0.001, eps=1e-8, weight_decay=0, power=2, normgrad= True, lr_cutoff= 19):
-        # eta corresponds to the maximal learning rate
+    def __init__(self, params, beta1= 0.9, beta2= 0.999, beta3= 1, lr= 0.001, eps=1e-8, weight_decay=0, power=2, normgrad= True, lr_cutoff= 19):
+        # lr corresponds to the maximal learning rate
         # if normgrad True the norm in the lr is is computed on the gradient, otherwise the velocity!
-        # lr_cutoff controls the minimal learning rate, if = 19 minimal learning rate is eta/(19+1)
-        defaults= dict(beta1 = beta1, beta2= beta2, beta3= beta3, eps = eps, weight_decay= weight_decay, power=power, eta= eta, normgrad= normgrad, lr_cutoff= lr_cutoff)
+        # lr_cutoff controls the minimal learning rate, if = 19 minimal learning rate is lr/(19+1)
+        defaults= dict(beta1 = beta1, beta2= beta2, beta3= beta3, eps = eps, weight_decay= weight_decay, power=power, lr= lr, normgrad= normgrad, lr_cutoff= lr_cutoff)
         super().__init__(params, defaults)
 
     @torch.no_grad()
@@ -32,7 +32,7 @@ class VADAM(Optimizer):
             eps = group['eps']
             wd= group['weight_decay']
             power= group['power']
-            eta= group['eta']
+            lr= group['lr']
             normgrad= group['normgrad']
             lr_cutoff= group['lr_cutoff']
 
@@ -69,7 +69,7 @@ class VADAM(Optimizer):
 
 
 
-            lr= eta/(1 + min(float(beta3 * total_sq_norm), float(lr_cutoff)))
+            lr_full= lr/(1 + min(float(beta3 * total_sq_norm), float(lr_cutoff)))
             # Commenting out the print to avoid flooding output during benchmarking
             # print(f"total_sq_norm: {total_sq_norm}")
             for p in group['params']:
@@ -90,5 +90,5 @@ class VADAM(Optimizer):
                 tmp1.div_(tmp2)
 
                 # update parameter with weight decay
-                p.mul_(1-wd*lr).add_(tmp1, alpha=-lr)
+                p.mul_(1-wd*lr_full).add_(tmp1, alpha=-lr_full)
         return loss
