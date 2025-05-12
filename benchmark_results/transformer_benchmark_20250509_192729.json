@@ -1,0 +1,108 @@
+{
+  "ADAM": {
+    "params": {
+      "model": "TransformerModel",
+      "device": "mps",
+      "dataset": "WikiText2",
+      "dataset_size": "small",
+      "batch_size": 32,
+      "max_seq_len": 128,
+      "embed_dim": 256,
+      "hidden_dim": 512,
+      "lr": 0.001,
+      "epochs": 3,
+      "beta1": 0.9,
+      "beta2": 0.999,
+      "eps": 1e-08,
+      "weight_decay": 0,
+      "eta": 0.001,
+      "beta3": 0.8,
+      "power": 2,
+      "normgrad": true,
+      "lr_cutoff": 15,
+      "optimizer": "ADAM"
+    },
+    "train_losses": [
+      4.777317523956299,
+      3.7332592010498047,
+      3.4474549293518066
+    ],
+    "train_accs": [],
+    "val_losses": [
+      5.151752471923828,
+      5.216253280639648,
+      5.119972229003906
+    ],
+    "val_accs": [],
+    "train_perplexities": [
+      118.78528361447081,
+      41.815170363702286,
+      31.42032351846005
+    ],
+    "val_perplexities": [
+      172.73393659932265,
+      184.24258400755923,
+      167.33072261573426
+    ],
+    "final_train_loss": 2.8391010761260986,
+    "final_train_acc": null,
+    "final_train_perplexity": 17.100386680130892,
+    "test_loss": 4.852391719818115,
+    "test_acc": null,
+    "test_perplexity": 128.04627471763877,
+    "train_time": 3.8961551189422607
+  },
+  "VADAM": {
+    "params": {
+      "model": "TransformerModel",
+      "device": "mps",
+      "dataset": "WikiText2",
+      "dataset_size": "small",
+      "batch_size": 32,
+      "max_seq_len": 128,
+      "embed_dim": 256,
+      "hidden_dim": 512,
+      "lr": 0.001,
+      "epochs": 3,
+      "beta1": 0.9,
+      "beta2": 0.999,
+      "eps": 1e-08,
+      "weight_decay": 0,
+      "eta": 0.001,
+      "beta3": 0.8,
+      "power": 2,
+      "normgrad": true,
+      "lr_cutoff": 15,
+      "optimizer": "VADAM"
+    },
+    "train_losses": [
+      4.6157941818237305,
+      4.485313892364502,
+      4.4601664543151855
+    ],
+    "train_accs": [],
+    "val_losses": [
+      4.435845375061035,
+      4.3434319496154785,
+      4.279996871948242
+    ],
+    "val_accs": [],
+    "train_perplexities": [
+      101.06806308651451,
+      88.70479019978501,
+      86.50190651365101
+    ],
+    "val_perplexities": [
+      84.4234642210143,
+      76.97124800702797,
+      72.24021403584344
+    ],
+    "final_train_loss": 4.09635591506958,
+    "final_train_acc": null,
+    "final_train_perplexity": 60.1208026184681,
+    "test_loss": 4.332573413848877,
+    "test_acc": null,
+    "test_perplexity": 76.13997433279351,
+    "train_time": 0.5013961791992188
+  }
+}

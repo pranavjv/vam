@@ -1,0 +1,129 @@
+{
+  "ADAM": {
+    "params": {
+      "device": "mps",
+      "dataset_size": "small",
+      "batch_size": 32,
+      "max_seq_len": 128,
+      "embed_dim": 256,
+      "hidden_dim": 512,
+      "lr": 0.001,
+      "epochs": 3,
+      "adam_beta1": 0.9,
+      "adam_beta2": 0.999,
+      "adam_eps": 1e-08,
+      "adam_weight_decay": 0,
+      "vadam_eta": 0.001,
+      "vadam_beta1": 0.9,
+      "vadam_beta2": 0.999,
+      "vadam_beta3": 1.0,
+      "vadam_eps": 1e-08,
+      "vadam_weight_decay": 0,
+      "vadam_power": 2,
+      "vadam_normgrad": true,
+      "vadam_lr_cutoff": 19,
+      "dataset": "CIFAR10",
+      "model": "SimpleCNN",
+      "optimizer": "ADAM",
+      "beta1": 0.9,
+      "beta2": 0.999,
+      "eps": 1e-08,
+      "weight_decay": 0
+    },
+    "train_losses": [
+      2.331200122833252,
+      2.1913273334503174,
+      2.046658843755722
+    ],
+    "train_accs": [
+      0.09,
+      0.19,
+      0.23
+    ],
+    "val_losses": [
+      2.2934677410125732,
+      2.30186164855957,
+      2.3300075912475586
+    ],
+    "val_accs": [
+      0.1,
+      0.22,
+      0.1
+    ],
+    "train_perplexities": [],
+    "val_perplexities": [],
+    "final_train_loss": 2.0679307842254637,
+    "final_train_acc": 0.26,
+    "final_train_perplexity": null,
+    "test_loss": 2.261469320678711,
+    "test_acc": 0.1517,
+    "test_perplexity": null,
+    "train_time": 217.11142683029175
+  },
+  "VADAM": {
+    "params": {
+      "device": "mps",
+      "dataset_size": "small",
+      "batch_size": 32,
+      "max_seq_len": 128,
+      "embed_dim": 256,
+      "hidden_dim": 512,
+      "lr": 0.001,
+      "epochs": 3,
+      "adam_beta1": 0.9,
+      "adam_beta2": 0.999,
+      "adam_eps": 1e-08,
+      "adam_weight_decay": 0,
+      "vadam_eta": 0.001,
+      "vadam_beta1": 0.9,
+      "vadam_beta2": 0.999,
+      "vadam_beta3": 1.0,
+      "vadam_eps": 1e-08,
+      "vadam_weight_decay": 0,
+      "vadam_power": 2,
+      "vadam_normgrad": true,
+      "vadam_lr_cutoff": 19,
+      "dataset": "CIFAR10",
+      "model": "SimpleCNN",
+      "optimizer": "VADAM",
+      "eta": 0.001,
+      "beta1": 0.9,
+      "beta2": 0.999,
+      "beta3": 1.0,
+      "eps": 1e-08,
+      "weight_decay": 0,
+      "power": 2,
+      "normgrad": true,
+      "lr_cutoff": 19
+    },
+    "train_losses": [
+      2.2942281365394592,
+      2.245279610157013,
+      2.1893769800662994
+    ],
+    "train_accs": [
+      0.1,
+      0.17,
+      0.15
+    ],
+    "val_losses": [
+      2.3187841415405273,
+      2.3232595443725588,
+      2.3137720012664795
+    ],
+    "val_accs": [
+      0.08,
+      0.1,
+      0.1
+    ],
+    "train_perplexities": [],
+    "val_perplexities": [],
+    "final_train_loss": 2.237133264541626,
+    "final_train_acc": 0.15,
+    "final_train_perplexity": null,
+    "test_loss": 2.301492205429077,
+    "test_acc": 0.1,
+    "test_perplexity": null,
+    "train_time": 217.2173409461975
+  }
+}

@@ -7,16 +7,12 @@ import nltk
 from nltk.tokenize import word_tokenize
 from collections import Counter
 import numpy as np
-import torchtext
-from torchtext.datasets import WikiText2, IMDB
-from torchtext.data.utils import get_tokenizer
-from torchtext.vocab import build_vocab_from_iterator
-from torch.utils.data.dataset import random_split
-from torch.nn.utils.rnn import pad_sequence
 import os
 import time
 import math
 
+# Import our custom text dataset implementations
+import text_datasets
 
 from VADAM import VADAM
 import architectures
@@ -129,174 +125,64 @@ class Benchmarker:
             self.task_type = "classification"
             
         elif self.p['dataset'] == 'WikiText2':
-            # For language modeling using torchtext 0.6.0 API
             try:
-                from torchtext.data import Field, BPTTIterator
-                from torchtext.datasets import WikiText2 as legacy_WikiText2
-                
-                # Create Field for text processing with legacy API
-                TEXT = Field(tokenize=lambda x: x.split(), lower=True)
-                
-                # Load dataset with legacy API
-                try:
-                    train_data, val_data, test_data = legacy_WikiText2.splits(TEXT)
-                    print("Loaded WikiText2 dataset using legacy torchtext API")
-                except:
-                    # Create a minimal dataset manually if loading fails
-                    print("Falling back to manual tiny WikiText2 dataset")
-                    
-                    # Create tiny data manually
-                    import os
-                    
-                    tiny_data_dir = './tiny_wikitext'
-                    os.makedirs(tiny_data_dir, exist_ok=True)
-                    
-                    # Create tiny train.txt, valid.txt, and test.txt files
-                    train_text = """
-                    The tower is 324 metres tall .
-                    The metal structure weighs 7,300 tonnes .
-                    The tower has three levels for visitors .
-                    Tickets can be purchased to ascend by stairs or lift .
-                    The tower is the most-visited paid monument in the world .
-                    """
-                    
-                    val_text = """
-                    The tower was built as the entrance to the 1889 World's Fair .
-                    It was named after the engineer Gustave Eiffel .
-                    The design of the tower was criticized by many artists .
-                    """
-                    
-                    test_text = """
-                    More than 250 million people have visited the tower since it was completed .
-                    The tower was almost demolished in 1909 .
-                    Today , it is considered a distinctive landmark of Paris .
-                    """
-                    
-                    # Write the files
-                    for filename, content in [('train.txt', train_text), 
-                                             ('valid.txt', val_text), 
-                                             ('test.txt', test_text)]:
-                        with open(os.path.join(tiny_data_dir, filename), 'w') as f:
-                            f.write(content)
-                    
-                    # Load the custom data
-                    from torchtext.data import Dataset, Example
-                    
-                    def load_custom_data(path):
-                        examples = []
-                        with open(path, 'r') as f:
-                            for line in f:
-                                if line.strip():
-                                    examples.append(Example.fromlist([line], fields=[('text', TEXT)]))
-                        return Dataset(examples, fields=[('text', TEXT)])
-                    
-                    train_data = load_custom_data(os.path.join(tiny_data_dir, 'train.txt'))
-                    val_data = load_custom_data(os.path.join(tiny_data_dir, 'valid.txt'))
-                    test_data = load_custom_data(os.path.join(tiny_data_dir, 'test.txt'))
-                
-                # Build vocabulary from training data
-                TEXT.build_vocab(train_data)
-                
-                # Store vocab information
-                self.vocab = TEXT.vocab
-                self.vocab_size = len(TEXT.vocab)
-                
-                # Create BPTTIterator for language modeling
-                self.bptt = self.p['max_seq_len']
-                batch_size = min(self.p['batch_size'], 20) if self.p['dataset_size'] == 'small' else self.p['batch_size']
-                
-                # Create iterators
-                self.train_loader, self.val_loader, self.test_loader = BPTTIterator.splits(
-                    (train_data, val_data, test_data),
-                    batch_size=batch_size,
-                    bptt_len=self.bptt,
-                    device=self.device
-                )
-                
-                # We need to adapt the training and evaluation methods for this iterator
-                self.criterion = torch.nn.CrossEntropyLoss()
-                self.task_type = "language_modeling"
-                
-            except ImportError as e:
-                raise ImportError(f"Could not load torchtext 0.6.0 APIs: {e}. Please install torchtext 0.6.0 (pip install torchtext==0.6.0)")
-
-        elif self.p['dataset'] == 'IMDB':
-            # For sentiment analysis (text classification) using torchtext 0.6.0 API
-            try:
-                from torchtext.data import Field, TabularDataset, BucketIterator
-                from torchtext.datasets import IMDB as legacy_IMDB
-                
-                # Define fields for legacy torchtext format
-                TEXT = Field(tokenize='spacy', lower=True, include_lengths=True, batch_first=True)
-                LABEL = Field(sequential=False, use_vocab=False, 
-                             preprocessing=lambda x: 1 if x == 'pos' else 0)
-                
-                # Load datasets using legacy API
-                fields = [('text', TEXT), ('label', LABEL)]
-                try:
-                    # Try to load IMDB directly
-                    train_data, test_data = legacy_IMDB.splits(TEXT, LABEL)
-                    print("Loaded IMDB dataset using legacy torchtext API")
-                except:
-                    # Create a minimal test dataset manually
-                    print("Falling back to manual tiny IMDB dataset")
-                    # Create tiny train and test data
-                    import os
-                    
-                    tiny_data_dir = './tiny_imdb'
-                    os.makedirs(tiny_data_dir, exist_ok=True)
-                    os.makedirs(os.path.join(tiny_data_dir, 'train'), exist_ok=True)
-                    os.makedirs(os.path.join(tiny_data_dir, 'test'), exist_ok=True)
-                    
-                    # Create tiny train.csv and test.csv
-                    with open(os.path.join(tiny_data_dir, 'train.csv'), 'w') as f:
-                        f.write("text,label\n")
-                        f.write("this movie was great,pos\n")
-                        f.write("terrible waste of time,neg\n")
-                        f.write("i loved this film,pos\n")
-                        f.write("awful acting and direction,neg\n")
-                        f.write("brilliant screenplay and effects,pos\n")
-                    
-                    with open(os.path.join(tiny_data_dir, 'test.csv'), 'w') as f:
-                        f.write("text,label\n")
-                        f.write("excellent movie experience,pos\n")
-                        f.write("one of the worst films,neg\n")
-                        f.write("amazing visual effects,pos\n")
-                        f.write("poor screenplay and acting,neg\n")
-                    
-                    train_data, test_data = TabularDataset.splits(
-                        path=tiny_data_dir,
-                        train='train.csv',
-                        test='test.csv',
-                        format='csv',
-                        fields=fields,
-                        skip_header=True
+                # Check if we should use the tiny dataset for quick testing
+                if self.p['dataset_size'] == 'small':
+                    print("Using tiny WikiText2 dataset for quick testing")
+                    self.train_loader, self.val_loader, self.test_loader, self.vocab = text_datasets.get_tiny_datasets(
+                        self.p['batch_size'], 'wikitext2', self.device
+                    )
+                else:
+                    # Use the full dataset
+                    self.train_loader, self.val_loader, self.test_loader, self.vocab = text_datasets.get_wikitext2_iterators(
+                        self.p['batch_size'], self.p['max_seq_len'], self.device
                     )
                 
-                # Build vocabulary
-                TEXT.build_vocab(train_data, max_size=25000)
+                self.vocab_size = len(self.vocab)
+                self.criterion = torch.nn.CrossEntropyLoss(ignore_index=self.vocab['<pad>'])
+                self.task_type = "language_modeling"
                 
-                # Split train into train/val
-                train_data, val_data = train_data.split(split_ratio=0.8)
-                
-                # Create iterators
-                batch_size = self.p['batch_size']
-                self.train_loader, self.val_loader, self.test_loader = BucketIterator.splits(
-                    (train_data, val_data, test_data),
-                    batch_size=batch_size,
-                    sort_key=lambda x: len(x.text),
-                    sort_within_batch=True,
-                    device=self.device
+            except Exception as e:
+                print(f"Error loading WikiText2 dataset: {e}")
+                # Create fallback tiny dataset
+                print("Falling back to manually created tiny WikiText2 dataset")
+                self.train_loader, self.val_loader, self.test_loader, self.vocab = text_datasets.get_tiny_datasets(
+                    self.p['batch_size'], 'wikitext2', self.device
                 )
+                self.vocab_size = len(self.vocab)
+                self.criterion = torch.nn.CrossEntropyLoss(ignore_index=self.vocab['<pad>'])
+                self.task_type = "language_modeling"
+
+        elif self.p['dataset'] == 'IMDB':
+            try:
+                # Check if we should use tiny dataset for quick testing
+                if self.p['dataset_size'] == 'small':
+                    print("Using tiny IMDB dataset for quick testing")
+                    self.train_loader, self.val_loader, self.test_loader, self.vocab = text_datasets.get_tiny_datasets(
+                        self.p['batch_size'], 'imdb', self.device
+                    )
+                else:
+                    # Use the full dataset
+                    self.train_loader, self.val_loader, self.test_loader, self.vocab = text_datasets.get_imdb_iterators(
+                        self.p['batch_size'], self.device
+                    )
                 
-                self.vocab = TEXT.vocab
-                self.vocab_size = len(TEXT.vocab)
+                self.vocab_size = len(self.vocab)
                 self.criterion = torch.nn.CrossEntropyLoss()
                 self.task_type = "text_classification"
                 self.num_classes = 2  # Binary classification
                 
-            except ImportError as e:
-                raise ImportError(f"Could not load torchtext 0.6.0 APIs: {e}. Please install torchtext 0.6.0 (pip install torchtext==0.6.0)")
+            except Exception as e:
+                print(f"Error loading IMDB dataset: {e}")
+                # Create fallback tiny dataset
+                print("Falling back to manually created tiny IMDB dataset")
+                self.train_loader, self.val_loader, self.test_loader, self.vocab = text_datasets.get_tiny_datasets(
+                    self.p['batch_size'], 'imdb', self.device
+                )
+                self.vocab_size = len(self.vocab)
+                self.criterion = torch.nn.CrossEntropyLoss()
+                self.task_type = "text_classification"
+                self.num_classes = 2  # Binary classification
 
     def setup_training(self):
         if self.p['model'] == 'SimpleCNN':
@@ -367,36 +253,9 @@ class Benchmarker:
         total = 0
         
         if self.task_type == "classification" or self.task_type == "text_classification":
-            # Check if we're using torchtext 0.6.0 iterators
-            if hasattr(self.train_loader, 'dataset') and hasattr(self.train_loader.dataset, 'examples'):
-                # Using torchtext 0.6.0 iterators
-                for batch_idx, batch in enumerate(self.train_loader):
-                    # Handle IMDB data format with include_lengths=True
-                    if hasattr(batch, 'text') and isinstance(batch.text, tuple):
-                        text, lengths = batch.text
-                        target = batch.label
-                    else:
-                        # Generic format
-                        text = batch.text
-                        target = batch.label
-                    
-                    self.optimizer.zero_grad()
-                    output = self.model(text)
-                    loss = self.criterion(output, target)
-                    loss.backward()
-                    self.optimizer.step()
-                    
-                    total_loss += loss.item()
-                    
-                    # Calculate accuracy
-                    pred = output.argmax(dim=1)
-                    correct += (pred == target).sum().item()
-                    total += target.size(0)
-                    
-                    if batch_idx % 10 == 0:
-                        print(f'Train Epoch: {epoch} [{batch_idx}/{len(self.train_loader)}] Loss: {loss.item():.6f}')
-            else:
-                # Standard PyTorch DataLoader
+            # For image classification (CIFAR10) and text classification (IMDB)
+            if self.p['dataset'] == 'CIFAR10':
+                # Standard PyTorch DataLoader for CIFAR10
                 for batch_idx, (data, target) in enumerate(self.train_loader):
                     data, target = data.to(self.device), target.to(self.device)
                     
@@ -415,6 +274,32 @@ class Benchmarker:
                     
                     if batch_idx % 10 == 0:
                         print(f'Train Epoch: {epoch} [{batch_idx}/{len(self.train_loader)}] Loss: {loss.item():.6f}')
+            else:
+                # For IMDB with our custom DataLoader
+                for batch_idx, batch in enumerate(self.train_loader):
+                    # Our IMDB loader returns tokenized texts, lengths, and labels
+                    texts, lengths, labels = batch
+                    
+                    # Convert texts to indices and create tensor
+                    indices = [[self.vocab[token] for token in text] for text in texts]
+                    input_tensor = torch.tensor(indices).to(self.device)
+                    labels = labels.to(self.device)
+                    
+                    self.optimizer.zero_grad()
+                    output = self.model(input_tensor)
+                    loss = self.criterion(output, labels)
+                    loss.backward()
+                    self.optimizer.step()
+                    
+                    total_loss += loss.item()
+                    
+                    # Calculate accuracy
+                    pred = output.argmax(dim=1)
+                    correct += (pred == labels).sum().item()
+                    total += labels.size(0)
+                    
+                    if batch_idx % 10 == 0:
+                        print(f'Train Epoch: {epoch} [{batch_idx}/{len(self.train_loader)}] Loss: {loss.item():.6f}')
             
             # Return average loss and accuracy
             avg_loss = total_loss / len(self.train_loader)
@@ -422,80 +307,60 @@ class Benchmarker:
             return avg_loss, accuracy, None  # None for perplexity
         
         elif self.task_type == "language_modeling":
-            # Check if we're using torchtext 0.6.0 iterators
-            if hasattr(self.train_loader, 'dataset') and hasattr(self.train_loader.dataset, 'examples'):
-                # Using torchtext 0.6.0 BPTTIterator
-                for batch_idx, batch in enumerate(self.train_loader):
-                    text, targets = batch.text, batch.target
-                    total_tokens = targets.numel()
+            # For WikiText2 language modeling
+            total_tokens = 0
+            
+            for batch_idx, batch in enumerate(self.train_loader):
+                # For language modeling, batch contains input and target tensors
+                # These are already in shape [seq_len, batch_size]
+                src, targets = batch
+                src, targets = src.to(self.device), targets.to(self.device)
+                
+                if self.p['dataset'] == 'WikiText2':
+                    # Handle for TransformerModel
+                    self.optimizer.zero_grad()
                     
-                    # Format for transformer input
                     if self.p['model'] == 'TransformerModel':
-                        src = text
-                        tgt = torch.zeros_like(src)
-                        if len(src) > 1:  # Ensure we have enough tokens
-                            tgt[:-1] = src[1:]  # Shift right to predict next token
+                        # TransformerModel expects src and target with shape [seq_len, batch_size]
+                        tgt = src.clone()
+                        output = self.model(src, tgt)  # output shape: [seq_len, batch_size, vocab_size]
                         
-                        self.optimizer.zero_grad()
-                        output = self.model(src, tgt)
+                        # Reshape for loss calculation
+                        # Flatten sequence and batch dimensions
+                        output_flat = output.reshape(-1, self.vocab_size)  # [seq_len*batch_size, vocab_size]
+                        targets_flat = targets.reshape(-1)  # [seq_len*batch_size]
+                        
+                        # Calculate loss
+                        loss = self.criterion(output_flat, targets_flat)
                     else:
-                        # Format for other models
-                        self.optimizer.zero_grad()
-                        output = self.model(text)
+                        # Other models only need src
+                        output = self.model(src)
+                        
+                        # Reshape for loss calculation
+                        output_flat = output.reshape(-1, self.vocab_size)
+                        targets_flat = targets.reshape(-1)
+                        
+                        loss = self.criterion(output_flat, targets_flat)
                     
-                    # Reshape output if needed
-                    if output.size(0) != targets.size(0):
-                        output = output.view(-1, self.vocab_size)
-                    
-                    loss = self.criterion(output, targets)
                     loss.backward()
                     self.optimizer.step()
                     
-                    total_loss += loss.item() * total_tokens
+                    # Count non-padding tokens
+                    non_padding_mask = targets_flat != self.vocab['<pad>']
+                    num_tokens = non_padding_mask.int().sum().item()
+                    
+                    total_loss += loss.item() * num_tokens
+                    total_tokens += num_tokens
                     
                     if batch_idx % 5 == 0:
                         print(f'Train Epoch: {epoch} [{batch_idx}/{len(self.train_loader)}] Loss: {loss.item():.6f}')
-                
-                # Calculate average loss and perplexity
-                total_tokens = sum(len(batch.target.flatten()) for batch in self.train_loader)
-                avg_loss = total_loss / max(total_tokens, 1)
-                perplexity = math.exp(avg_loss)
-                return avg_loss, None, perplexity  # None for accuracy
-            else:
-                # Legacy method with manually batched data
-                total_tokens = 0
-                for i in range(0, self.train_data.size(0) - 1, self.bptt):
-                    # Get batch for language modeling
-                    bptt = self.bptt if np.random.random() < 0.95 else self.bptt // 2
-                    data, targets = self.get_batch(self.train_data, i, bptt)
-                    total_tokens += targets.size(0)
-                    
-                    # Generate input and target sequences
-                    src = data
-                    tgt = torch.zeros_like(src)
-                    if len(src) > 1:  # Ensure we have enough tokens
-                        tgt[:-1] = src[1:]  # Shift right to predict next token
-                    
-                    self.optimizer.zero_grad()
-                    output = self.model(src, tgt)
-                    
-                    # Calculate loss
-                    output = output.view(-1, self.vocab_size)
-                    loss = self.criterion(output, targets)
-                    loss.backward()
-                    self.optimizer.step()
-                    
-                    total_loss += loss.item() * targets.size(0)
-                    
-                    if i % (self.bptt * 5) == 0:
-                        print(f'Train Epoch: {epoch} [{i}/{self.train_data.size(0)}] Loss: {loss.item():.6f}')
-                
-                # Calculate average loss and perplexity
-                avg_loss = total_loss / total_tokens
-                perplexity = math.exp(avg_loss)
-                return avg_loss, None, perplexity  # None for accuracy
+            
+            # Calculate average loss and perplexity
+            avg_loss = total_loss / max(total_tokens, 1)
+            perplexity = math.exp(avg_loss)
+            return avg_loss, None, perplexity  # None for accuracy
 
-    def evaluate(self, data_source):
+    def evaluate(self, data_loader):
         """Evaluate the model on the provided data"""
         self.model.eval()
         total_loss = 0
@@ -504,30 +369,9 @@ class Benchmarker:
         
         with torch.no_grad():
             if self.task_type == "classification" or self.task_type == "text_classification":
-                # Check if we're using torchtext 0.6.0 iterators
-                if hasattr(data_source, 'dataset') and hasattr(data_source.dataset, 'examples'):
-                    # Using torchtext 0.6.0 iterators
-                    for batch in data_source:
-                        # Handle IMDB data format with include_lengths=True
-                        if hasattr(batch, 'text') and isinstance(batch.text, tuple):
-                            text, lengths = batch.text
-                            target = batch.label
-                        else:
-                            # Generic format
-                            text = batch.text
-                            target = batch.label
-                        
-                        output = self.model(text)
-                        loss = self.criterion(output, target)
-                        total_loss += loss.item() * target.size(0)
-                        
-                        # Calculate accuracy
-                        pred = output.argmax(dim=1)
-                        correct += (pred == target).sum().item()
-                        total += target.size(0)
-                else:
-                    # Standard PyTorch DataLoader
-                    for data, target in data_source:
+                if self.p['dataset'] == 'CIFAR10':
+                    # Standard PyTorch DataLoader for CIFAR10
+                    for data, target in data_loader:
                         data, target = data.to(self.device), target.to(self.device)
                         output = self.model(data)
                         loss = self.criterion(output, target)
@@ -537,67 +381,72 @@ class Benchmarker:
                         pred = output.argmax(dim=1, keepdim=True)
                         correct += pred.eq(target.view_as(pred)).sum().item()
                         total += target.size(0)
+                else:
+                    # For IMDB with our custom DataLoader
+                    for batch in data_loader:
+                        # Our IMDB loader returns tokenized texts, lengths, and labels
+                        texts, lengths, labels = batch
+                        
+                        # Convert texts to indices and create tensor
+                        indices = [[self.vocab[token] for token in text] for text in texts]
+                        input_tensor = torch.tensor(indices).to(self.device)
+                        labels = labels.to(self.device)
+                        
+                        output = self.model(input_tensor)
+                        loss = self.criterion(output, labels)
+                        total_loss += loss.item() * labels.size(0)
+                        
+                        # Calculate accuracy
+                        pred = output.argmax(dim=1)
+                        correct += (pred == labels).sum().item()
+                        total += labels.size(0)
                 
-                avg_loss = total_loss / total if total > 0 else 0
-                accuracy = correct / total if total > 0 else 0
+                avg_loss = total_loss / max(total, 1)
+                accuracy = correct / max(total, 1)
                 return avg_loss, accuracy, None  # None for perplexity
             
             elif self.task_type == "language_modeling":
-                # Check if we're using torchtext 0.6.0 iterators
-                if hasattr(data_source, 'dataset') and hasattr(data_source.dataset, 'examples'):
-                    # Using torchtext 0.6.0 BPTTIterator
-                    total_tokens = 0
-                    for batch in data_source:
-                        text, targets = batch.text, batch.target
-                        total_tokens += targets.numel()
-                        
-                        # Format for transformer input
-                        if self.p['model'] == 'TransformerModel':
-                            src = text
-                            tgt = torch.zeros_like(src)
-                            if len(src) > 1:
-                                tgt[:-1] = src[1:]
-                            
-                            output = self.model(src, tgt)
-                        else:
-                            # Format for other models
-                            output = self.model(text)
-                        
-                        # Reshape output if needed
-                        if output.size(0) != targets.size(0):
-                            output = output.view(-1, self.vocab_size)
-                        
-                        loss = self.criterion(output, targets)
-                        total_loss += loss.item() * targets.numel()
+                # For WikiText2 language modeling
+                total_tokens = 0
+                
+                for batch in data_loader:
+                    # For language modeling, batch contains input and target tensors
+                    # These are already in shape [seq_len, batch_size]
+                    src, targets = batch
+                    src, targets = src.to(self.device), targets.to(self.device)
                     
-                    # Calculate average loss and perplexity
-                    avg_loss = total_loss / max(total_tokens, 1)
-                    perplexity = math.exp(avg_loss)
-                    return avg_loss, None, perplexity  # None for accuracy
-                else:
-                    # Legacy method with manually batched data
-                    if not isinstance(data_source, torch.Tensor):
-                        raise ValueError("Expected Tensor for language modeling data")
-                    
-                    data_size = data_source.size(0) - 1
-                    total_tokens = 0
-                    
-                    for i in range(0, data_size - 1, self.bptt):
-                        data, targets = self.get_batch(data_source, i, self.bptt)
-                        total_tokens += targets.size(0)
+                    if self.p['model'] == 'TransformerModel':
+                        # TransformerModel expects src and target
+                        tgt = src.clone()
+                        output = self.model(src, tgt)  # output shape: [seq_len, batch_size, vocab_size]
                         
-                        src = data
-                        tgt = torch.zeros_like(src)
-                        if len(src) > 1:
-                            tgt[:-1] = src[1:]
+                        # Reshape for loss calculation
+                        output_flat = output.reshape(-1, self.vocab_size)  # [seq_len*batch_size, vocab_size]
+                        targets_flat = targets.reshape(-1)  # [seq_len*batch_size]
                         
-                        output = self.model(src, tgt)
-                        output = output.view(-1, self.vocab_size)
-                        total_loss += self.criterion(output, targets).item() * targets.size(0)
+                        # Calculate loss
+                        loss = self.criterion(output_flat, targets_flat)
+                    else:
+                        # Other models only need src
+                        output = self.model(src)
+                        
+                        # Reshape for loss calculation
+                        output_flat = output.reshape(-1, self.vocab_size)
+                        targets_flat = targets.reshape(-1)
+                        
+                        loss = self.criterion(output_flat, targets_flat)
                     
-                    avg_loss = total_loss / total_tokens if total_tokens > 0 else 0
-                    perplexity = math.exp(avg_loss)
-                    return avg_loss, None, perplexity  # None for accuracy
+                    # Count non-padding tokens
+                    non_padding_mask = targets_flat != self.vocab['<pad>']
+                    num_tokens = non_padding_mask.int().sum().item()
+                    
+                    total_loss += loss.item() * num_tokens
+                    total_tokens += num_tokens
+                
+                # Calculate average loss and perplexity
+                avg_loss = total_loss / max(total_tokens, 1)
+                perplexity = math.exp(avg_loss)
+                return avg_loss, None, perplexity  # None for accuracy
 
     def run(self):
         """Run the benchmark and track all metrics"""
@@ -616,49 +465,34 @@ class Benchmarker:
                 self.train_perplexities.append(train_ppl)
             
             # Validate
+            val_loss, val_acc, val_ppl = self.evaluate(self.val_loader)
+            self.val_losses.append(val_loss)
+            
+            if val_acc is not None:
+                self.val_accs.append(val_acc)
+            if val_ppl is not None:
+                self.val_perplexities.append(val_ppl)
+            
+            # Print epoch results
             if self.task_type == "language_modeling":
-                if hasattr(self, 'val_data'):
-                    # Using legacy data structure
-                    val_loss, val_acc, val_ppl = self.evaluate(self.val_data)
-                else:
-                    # Using torchtext 0.6.0 iterators
-                    val_loss, val_acc, val_ppl = self.evaluate(self.val_loader)
-                self.val_losses.append(val_loss)
-                if val_ppl is not None:
-                    self.val_perplexities.append(val_ppl)
                 print(f'Epoch {epoch} | Train Loss: {train_loss:.6f} | Train PPL: {train_ppl:.2f} | Val Loss: {val_loss:.6f} | Val PPL: {val_ppl:.2f}')
             else:
-                if hasattr(self, 'val_loader'):
-                    val_loss, val_acc, _ = self.evaluate(self.val_loader)
-                    self.val_losses.append(val_loss)
-                    if val_acc is not None:
-                        self.val_accs.append(val_acc)
-                    print(f'Epoch {epoch} | Train Loss: {train_loss:.6f} | Train Acc: {train_acc:.4f} | Val Loss: {val_loss:.6f} | Val Acc: {val_acc:.4f}')
+                print(f'Epoch {epoch} | Train Loss: {train_loss:.6f} | Train Acc: {train_acc:.4f} | Val Loss: {val_loss:.6f} | Val Acc: {val_acc:.4f}')
         
         # Evaluate on the training data for final metrics
+        self.final_train_loss, self.final_train_acc, self.final_train_perplexity = self.evaluate(self.train_loader)
+        
         if self.task_type == "language_modeling":
-            if hasattr(self, 'train_data'):
-                # Using legacy data structure
-                self.final_train_loss, _, self.final_train_perplexity = self.evaluate(self.train_data)
-            else:
-                # Using torchtext 0.6.0 iterators
-                self.final_train_loss, _, self.final_train_perplexity = self.evaluate(self.train_loader)
             print(f'Final Train Loss: {self.final_train_loss:.6f} | Final Train PPL: {self.final_train_perplexity:.2f}')
         else:
-            self.final_train_loss, self.final_train_acc, _ = self.evaluate(self.train_loader)
             print(f'Final Train Loss: {self.final_train_loss:.6f} | Final Train Acc: {self.final_train_acc:.4f}')
                 
         # Evaluate on test data
+        self.test_loss, self.test_acc, self.test_perplexity = self.evaluate(self.test_loader)
+        
         if self.task_type == "language_modeling":
-            if hasattr(self, 'test_data'):
-                # Using legacy data structure
-                self.test_loss, _, self.test_perplexity = self.evaluate(self.test_data)
-            else:
-                # Using torchtext 0.6.0 iterators
-                self.test_loss, _, self.test_perplexity = self.evaluate(self.test_loader)
             print(f'Test Loss: {self.test_loss:.6f} | Test PPL: {self.test_perplexity:.2f}')
         else:
-            self.test_loss, self.test_acc, _ = self.evaluate(self.test_loader)
             print(f'Test Loss: {self.test_loss:.6f} | Test Acc: {self.test_acc:.4f}')
         
         self.train_time = time.time() - start_time

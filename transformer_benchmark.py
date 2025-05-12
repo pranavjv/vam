@@ -121,7 +121,7 @@ def run_transformer_benchmark():
         'model': 'TransformerModel',
         'device': 'mps',  # Will automatically fall back to CPU if MPS is not available
         'dataset': 'WikiText2',
-        'dataset_size': 'small',  # Use 'small' for faster demonstration
+        'dataset_size': 'large',  # Use 'small' for faster demonstration
         'batch_size': 32,
         'max_seq_len': 128,
         'embed_dim': 256,
@@ -141,7 +141,7 @@ def run_transformer_benchmark():
         'eta': 0.001,  # Max learning rate for VADAM
         'beta3': 0.8,  # 
         'power': 2,
-        'normgrad': True,
+        'normgrad': False,
         'lr_cutoff': 15  
     }
     

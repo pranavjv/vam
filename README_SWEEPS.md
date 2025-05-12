@@ -6,12 +6,18 @@ This project implements a hyperparameter optimization system for the VADAM (Velo
 
 1. Install the required packages:
    ```bash
-   pip install torch torchvision torchtext==0.6.0 wandb matplotlib numpy
+   pip install torch torchvision datasets nltk wandb matplotlib numpy
    ```
 
 2. Create a Weights & Biases account and sign in:
    ```bash
    wandb login
+   ```
+
+3. Download NLTK data:
+   ```python
+   import nltk
+   nltk.download('punkt')
    ```
 
 ## Directory Structure
@@ -20,6 +26,7 @@ This project implements a hyperparameter optimization system for the VADAM (Velo
 - `run_sweep_agent.py`: Script to run individual sweep agents
 - `analyze_sweeps.py`: Script to analyze sweep results and extract best hyperparameters
 - `run_optimized_benchmark.py`: Script to run benchmarks with optimized hyperparameters
+- `text_datasets.py`: Custom implementation of text datasets using Hugging Face datasets
 - `sweep_results/`: Directory where sweep configurations and results are stored
 - `optimized_results/`: Directory where optimized benchmark results are stored
 
@@ -126,6 +133,16 @@ The system automatically generates comparison plots between optimized VADAM and 
 - Test performance comparison
 
 These visualizations are saved to the `optimized_results/` directory.
+
+## Dataset Information
+
+This project uses the following datasets:
+
+1. **CIFAR10** for image classification (via torchvision)
+2. **IMDB** for text classification (via Hugging Face datasets)
+3. **WikiText2** for language modeling (via Hugging Face datasets)
+
+The text datasets are processed using NLTK for tokenization and custom vocabulary building.
 
 ## Example Workflow
 
