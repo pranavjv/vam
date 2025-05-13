@@ -3,14 +3,14 @@ import wandb
 import json
 import os
 # Import the specific config creators and the generalized train_model
-from sweep_vadam_transformer import train_model, create_vadam_sweep_config, create_adam_sweep_config
+from sweep_vadam_transformer import train_model, create_vadam_sweep_config, create_adam_sweep_config, create_sgd_sweep_config, create_rmsprop_sweep_config
 
 def run_sweep_agent(optimizer_name, count=10):
     """
     Create and run a new W&B sweep agent for a specific optimizer on transformer language modeling.
     
     Args:
-        optimizer_name: Name of the optimizer ('VADAM' or 'ADAM')
+        optimizer_name: Name of the optimizer ('VADAM', 'ADAM', 'SGD', or 'RMSPROP')
         count: Number of runs to perform
     """
     # Ensure wandb is logged in
@@ -25,8 +25,16 @@ def run_sweep_agent(optimizer_name, count=10):
         print(f"Creating new ADAM sweep for transformer language modeling on WikiText2")
         sweep_config = create_adam_sweep_config()
         project_name = "ADAM-optimization-Transformer-WikiText2"
+    elif optimizer_name == 'SGD':
+        print(f"Creating new SGD sweep for transformer language modeling on WikiText2")
+        sweep_config = create_sgd_sweep_config()
+        project_name = "SGD-optimization-Transformer-WikiText2"
+    elif optimizer_name == 'RMSPROP':
+        print(f"Creating new RMSPROP sweep for transformer language modeling on WikiText2")
+        sweep_config = create_rmsprop_sweep_config()
+        project_name = "RMSPROP-optimization-Transformer-WikiText2"
     else:
-        raise ValueError(f"Unsupported optimizer_name: {optimizer_name}. Choose 'VADAM' or 'ADAM'.")
+        raise ValueError(f"Unsupported optimizer_name: {optimizer_name}. Choose 'VADAM', 'ADAM', 'SGD', or 'RMSPROP'.")
 
     # Initialize the sweep
     sweep_id = wandb.sweep(
@@ -53,8 +61,8 @@ def run_sweep_agent(optimizer_name, count=10):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run a W&B sweep agent for VADAM or ADAM optimization on transformer language modeling")
-    parser.add_argument("--optimizer_name", type=str, required=True, choices=["VADAM", "ADAM"],
-                      help="Optimizer to run the sweep for ('VADAM' or 'ADAM')")
+    parser.add_argument("--optimizer_name", type=str, required=True, choices=["VADAM", "ADAM", "SGD", "RMSPROP"],
+                      help="Optimizer to run the sweep for ('VADAM', 'ADAM', 'SGD', or 'RMSPROP')")
     parser.add_argument("--count", type=int, default=10, help="Number of runs to perform")
     
     args = parser.parse_args()

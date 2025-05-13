@@ -151,6 +151,27 @@ class DiffusionSweepTrainer:
             }
             self.optimizer = torch.optim.Adam(self.unet.parameters(), **adam_params)
             print(f"Using Adam optimizer with lr={adam_params['lr']}")
+        elif self.config.optimizer == "SGD":
+            # SGD parameters
+            sgd_params = {
+                'lr': self.config.lr,
+                'momentum': self.config.momentum if hasattr(self.config, 'momentum') else 0.9,
+                'weight_decay': self.config.weight_decay,
+                'nesterov': self.config.nesterov if hasattr(self.config, 'nesterov') else False
+            }
+            self.optimizer = torch.optim.SGD(self.unet.parameters(), **sgd_params)
+            print(f"Using SGD optimizer with lr={sgd_params['lr']}, momentum={sgd_params['momentum']}")
+        elif self.config.optimizer == "RMSPROP":
+            # RMSprop parameters
+            rmsprop_params = {
+                'lr': self.config.lr,
+                'alpha': self.config.alpha if hasattr(self.config, 'alpha') else 0.99,
+                'eps': self.config.eps,
+                'weight_decay': self.config.weight_decay,
+                'momentum': self.config.momentum if hasattr(self.config, 'momentum') else 0.0
+            }
+            self.optimizer = torch.optim.RMSprop(self.unet.parameters(), **rmsprop_params)
+            print(f"Using RMSprop optimizer with lr={rmsprop_params['lr']}, alpha={rmsprop_params['alpha']}")
         else:
             raise ValueError(f"Unknown optimizer: {self.config.optimizer}")
             
@@ -347,22 +368,24 @@ def create_sweep_config(optimizer_type):
             'sample_every': {'value': 5},      # Save samples every 5 epochs
             
             # Common optimizer parameters
-            'beta1': {'value': 0.9},
-            'beta2': {'value': 0.999},
-            'eps': {'value': 1e-8},
             'weight_decay': {'value': 1e-5},
         }
     }
     
     # Add optimizer-specific parameters
     if optimizer_type == 'ADAM':
-        # For Adam, we sweep learning rate
-        sweep_config['parameters']['lr'] = {
-            'distribution': 'log_uniform_values',
-            'min': 1e-5,
-            'max': 1e-1
-        }
-    else:  # VADAM
+        # For Adam, we sweep learning rate and standard Adam parameters
+        sweep_config['parameters'].update({
+            'lr': {
+                'distribution': 'log_uniform_values',
+                'min': 1e-5,
+                'max': 1e-1
+            },
+            'beta1': {'value': 0.9},
+            'beta2': {'value': 0.999},
+            'eps': {'value': 1e-8},
+        })
+    elif optimizer_type == 'VADAM':
         # For VADAM, we sweep learning rate, beta3, and lr_cutoff
         sweep_config['parameters'].update({
             'lr': {
@@ -370,6 +393,8 @@ def create_sweep_config(optimizer_type):
                 'min': 1e-5,
                 'max': 1e-1
             },
+            'beta1': {'value': 0.9},
+            'beta2': {'value': 0.999},
             'beta3': {
                 'distribution': 'uniform',
                 'min': 0.1,
@@ -380,8 +405,38 @@ def create_sweep_config(optimizer_type):
                 'min': 5,
                 'max': 30
             },
+            'eps': {'value': 1e-8},
             'power': {'value': 2},
             'normgrad': {'values': [True, False]}
+        })
+    elif optimizer_type == 'SGD':
+        # For SGD, we sweep learning rate and momentum
+        sweep_config['parameters'].update({
+            'lr': {
+                'distribution': 'log_uniform_values',
+                'min': 1e-5,
+                'max': 1e-1
+            },
+            'momentum': {
+                'value': 0.2 
+            },
+            'nesterov': {'value': True}
+        })
+    elif optimizer_type == 'RMSPROP':
+        # For RMSprop, we sweep learning rate and alpha
+        sweep_config['parameters'].update({
+            'lr': {
+                'distribution': 'log_uniform_values',
+                'min': 1e-5,
+                'max': 1e-1
+            },
+            'alpha': {
+                'value':0.1
+            },
+            'eps': {'value': 1e-8},
+            'momentum': {
+                'value':0.2
+            }
         })
     
     return sweep_config
@@ -391,7 +446,7 @@ def run_sweep_agent(optimizer_name, count=10):
     Create and run a new W&B sweep agent for a specific optimizer.
     
     Args:
-        optimizer_name: Name of the optimizer ('VADAM' or 'ADAM')
+        optimizer_name: Name of the optimizer ('VADAM', 'ADAM', 'SGD', or 'RMSPROP')
         count: Number of runs to perform
     """
     # Ensure wandb is logged in
@@ -433,8 +488,8 @@ def run_sweep_agent(optimizer_name, count=10):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run a W&B sweep agent for diffusion model optimization")
-    parser.add_argument("--optimizer", type=str, required=True, choices=["VADAM", "ADAM"],
-                       help="Optimizer to run the sweep for ('VADAM' or 'ADAM')")
+    parser.add_argument("--optimizer", type=str, required=True, choices=["VADAM", "ADAM", "SGD", "RMSPROP"],
+                       help="Optimizer to run the sweep for ('VADAM', 'ADAM', 'SGD', or 'RMSPROP')")
     parser.add_argument("--count", type=int, default=10, help="Number of runs to perform")
     
     args = parser.parse_args()
