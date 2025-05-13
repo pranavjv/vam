@@ -1,0 +1,85 @@
+[
+  {
+    "experiment_id": "baseline_comparison",
+    "eta_values": [0.001, 0.01, 0.05],
+    "beta1": 0.9,
+    "beta2": 0.999,
+    "beta3": 1.0,
+    "num_steps": 100,
+    "seed": 42,
+    "use_wandb": false
+  },
+  {
+    "experiment_id": "high_beta3",
+    "eta_values": [0.01],
+    "beta1": 0.9,
+    "beta2": 0.999,
+    "beta3": 3.0,
+    "num_steps": 100,
+    "seed": 42,
+    "use_wandb": false
+  },
+  {
+    "experiment_id": "very_high_beta3",
+    "eta_values": [0.01],
+    "beta1": 0.9,
+    "beta2": 0.999,
+    "beta3": 10.0,
+    "num_steps": 100,
+    "seed": 42,
+    "use_wandb": false
+  },
+  {
+    "experiment_id": "beta1_variation",
+    "eta_values": [0.01],
+    "beta1": 0.95,
+    "beta2": 0.999,
+    "beta3": 1.0,
+    "num_steps": 100,
+    "seed": 42,
+    "use_wandb": false
+  },
+  {
+    "experiment_id": "momentum_norm",
+    "eta_values": [0.01],
+    "beta1": 0.9,
+    "beta2": 0.999,
+    "beta3": 1.0,
+    "num_steps": 100,
+    "seed": 42,
+    "normgrad": false,
+    "use_wandb": false
+  },
+  {
+    "experiment_id": "low_cutoff",
+    "eta_values": [0.01],
+    "beta1": 0.9,
+    "beta2": 0.999,
+    "beta3": 1.0,
+    "num_steps": 100,
+    "seed": 42,
+    "lr_cutoff": 5,
+    "use_wandb": false
+  },
+  {
+    "experiment_id": "higher_power",
+    "eta_values": [0.01],
+    "beta1": 0.9,
+    "beta2": 0.999,
+    "beta3": 1.0,
+    "num_steps": 100,
+    "seed": 42,
+    "power": 4,
+    "use_wandb": false
+  },
+  {
+    "experiment_id": "long_run_analysis",
+    "eta_values": [0.01],
+    "beta1": 0.9,
+    "beta2": 0.999,
+    "beta3": 1.0,
+    "num_steps": 500,
+    "seed": 42,
+    "use_wandb": false
+  }
+] 

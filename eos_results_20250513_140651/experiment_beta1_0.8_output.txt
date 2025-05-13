@@ -1,0 +1,14 @@
+STDOUT:
+
+
+STDERR:
+usage: edge_of_stability_analysis.py [-h] [--model MODEL] [--dataset DATASET]
+                                     [--device DEVICE]
+                                     [--batch_size BATCH_SIZE] [--seed SEED]
+                                     [--eta_values ETA_VALUES [ETA_VALUES ...]]
+                                     [--beta1 BETA1] [--beta2 BETA2]
+                                     [--beta3 BETA3] [--num_steps NUM_STEPS]
+                                     [--use_wandb] [--output_dir OUTPUT_DIR]
+edge_of_stability_analysis.py: error: unrecognized arguments: --experiment_id beta1_0.8
+
+
