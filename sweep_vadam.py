@@ -143,10 +143,10 @@ def create_vadam_sweep_config(model_type, dataset):
             'eta': {'distribution': 'log_uniform_values', 'min': 1e-4, 'max': 0.1}, # Base LR for VADAM
             'beta1': {'value': 0.9},
             'beta2': {'value': 0.999},
-            'beta3': {'distribution': 'uniform', 'min': 0.1, 'max': 2.0},
+            'beta3': {'distribution': 'uniform', 'min': 0.1, 'max': 1.5},
             'power': {'value': 2},
             'normgrad': {'values': [True, False]},
-            'lr_cutoff': {'distribution': 'int_uniform', 'min': 5, 'max': 30},
+            'lr_cutoff': {'distribution': 'int_uniform', 'min': 3, 'max': 30},
             'weight_decay': {'value': 1e-5},
             'eps': {'value': 1e-8},
         }

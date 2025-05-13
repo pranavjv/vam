@@ -235,6 +235,9 @@ class Benchmarker:
         # --- Model Instantiation (AFTER setting seed) ---
         if self.p['model'] == 'SimpleCNN':
             self.model = architectures.SimpleCNN().to(self.device)
+        elif self.p['model'] == 'DeeperCNN':
+            # Assuming DeeperCNN doesn't need extra args specific to CIFAR10
+            self.model = architectures.DeeperCNN().to(self.device)
         elif self.p['model'] == 'TransformerModel':
             # Setup for transformer model
             if self.p['dataset'] in ['WikiText2']:

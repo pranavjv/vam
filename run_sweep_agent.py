@@ -62,7 +62,8 @@ if __name__ == "__main__":
     # Removed --sweep_id, added required --optimizer_name
     parser.add_argument("--optimizer_name", type=str, required=True, choices=["VADAM", "ADAM"],
                       help="Optimizer to run the sweep for ('VADAM' or 'ADAM')")
-    parser.add_argument("--model", type=str, required=True, choices=["SimpleCNN", "MLPModel", "TransformerModel"], 
+    parser.add_argument("--model", type=str, required=True,
+                      choices=["SimpleCNN", "DeeperCNN", "MLPModel", "TransformerModel"],
                       help="Model type for the sweep")
     parser.add_argument("--dataset", type=str, required=True, choices=["CIFAR10", "IMDB", "WikiText2"], 
                       help="Dataset for the sweep")

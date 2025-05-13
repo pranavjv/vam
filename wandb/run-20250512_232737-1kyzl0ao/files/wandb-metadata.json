@@ -1,0 +1,52 @@
+{
+  "os": "Linux-6.8.0-52-generic-x86_64-with-glibc2.35",
+  "python": "CPython 3.10.12",
+  "startedAt": "2025-05-12T23:27:37.536451Z",
+  "args": [
+    "--optimizer_name",
+    "VADAM",
+    "--model",
+    "DeeperCNN",
+    "--dataset",
+    "CIFAR10",
+    "--count",
+    "42"
+  ],
+  "program": "/home/ubuntu/vam/run_sweep_agent.py",
+  "codePath": "run_sweep_agent.py",
+  "git": {
+    "remote": "https://github.com/pranavjv/vam.git",
+    "commit": "8f9359b26c35c3351d1599dd4f244fc7fb78a6ee"
+  },
+  "email": "lucasschorling@icloud.com",
+  "root": "/home/ubuntu/vam",
+  "host": "143-47-125-213",
+  "executable": "/usr/bin/python",
+  "codePathLocal": "run_sweep_agent.py",
+  "cpu_count": 30,
+  "cpu_count_logical": 30,
+  "gpu": "NVIDIA A10",
+  "gpu_count": 1,
+  "disk": {
+    "/": {
+      "total": "1456701079552",
+      "used": "28375818240"
+    }
+  },
+  "memory": {
+    "total": "238546489344"
+  },
+  "cpu": {
+    "count": 30,
+    "countLogical": 30
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA A10",
+      "memoryTotal": "24146608128",
+      "cudaCores": 9216,
+      "architecture": "Ampere"
+    }
+  ],
+  "cudaVersion": "12.8"
+}

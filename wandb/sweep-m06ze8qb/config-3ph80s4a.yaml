@@ -1,0 +1,46 @@
+wandb_version: 1
+
+batch_size:
+  value: 1024
+beta1:
+  value: 0.9
+beta2:
+  value: 0.999
+beta3:
+  value: 0.6300928788748515
+dataset:
+  value: CIFAR10
+dataset_size:
+  value: full
+embed_dim:
+  value: 300
+epochs:
+  value: 100
+eps:
+  value: 1.0e-08
+eta:
+  value: 0.09763355907804058
+hidden_dim:
+  value: 512
+lr_cutoff:
+  value: 28
+lr_eta_min:
+  value: 1.0e-05
+lr_scheduler_type:
+  value: WarmupCosineAnnealing
+lr_warmup_epochs:
+  value: 5
+lr_warmup_factor:
+  value: 0.1
+max_seq_len:
+  value: 256
+model:
+  value: DeeperCNN
+normgrad:
+  value: true
+optimizer_name:
+  value: VADAM
+power:
+  value: 2
+weight_decay:
+  value: 1.0e-05
