@@ -1,0 +1,48 @@
+{
+  "os": "Linux-5.10.0-34-cloud-amd64-x86_64-with-glibc2.31",
+  "python": "CPython 3.10.17",
+  "startedAt": "2025-05-12T20:48:09.773944Z",
+  "args": [
+    "--optimizer_name",
+    "VADAM",
+    "--count",
+    "42"
+  ],
+  "program": "/home/pranavaidhya/vam/run_sweep_agent_rl.py",
+  "codePath": "run_sweep_agent_rl.py",
+  "git": {
+    "remote": "https://github.com/pranavjv/vam.git",
+    "commit": "cdc9e8214c7607331691c11bf490cf658a7bd277"
+  },
+  "email": "pranavaidhya@gmail.com",
+  "root": "/home/pranavaidhya/vam",
+  "host": "vradam",
+  "executable": "/opt/python/3.10/bin/python",
+  "codePathLocal": "run_sweep_agent_rl.py",
+  "cpu_count": 4,
+  "cpu_count_logical": 8,
+  "gpu": "NVIDIA L4",
+  "gpu_count": 1,
+  "disk": {
+    "/": {
+      "total": "105426538496",
+      "used": "46381494272"
+    }
+  },
+  "memory": {
+    "total": "33671041024"
+  },
+  "cpu": {
+    "count": 4,
+    "countLogical": 8
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA L4",
+      "memoryTotal": "24152899584",
+      "cudaCores": 7424,
+      "architecture": "Ada"
+    }
+  ],
+  "cudaVersion": "12.4"
+}

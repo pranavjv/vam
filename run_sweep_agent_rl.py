@@ -18,13 +18,13 @@ def run_sweep_agent(optimizer_name, count=10):
     
     # Select the appropriate config function and set project name
     if optimizer_name == 'VADAM':
-        print(f"Creating new VADAM sweep for RL on HalfCheetah")
+        print(f"Creating new VADAM sweep for RL on HalfCheetah using PPO agent")
         sweep_config = create_vadam_sweep_config()
-        project_name = "VADAM-optimization-RL-HalfCheetah"
+        project_name = "VADAM-optimization-RL-HalfCheetah-PPO"
     elif optimizer_name == 'ADAM':
-        print(f"Creating new ADAM sweep for RL on HalfCheetah")
+        print(f"Creating new ADAM sweep for RL on HalfCheetah using PPO agent")
         sweep_config = create_adam_sweep_config()
-        project_name = "ADAM-optimization-RL-HalfCheetah"
+        project_name = "ADAM-optimization-RL-HalfCheetah-PPO"
     else:
         raise ValueError(f"Unsupported optimizer_name: {optimizer_name}. Choose 'VADAM' or 'ADAM'.")
 
@@ -37,7 +37,7 @@ def run_sweep_agent(optimizer_name, count=10):
     # Save sweep configuration and ID locally
     results_dir = f"sweep_results_{optimizer_name}"
     os.makedirs(results_dir, exist_ok=True)
-    config_path = f"{results_dir}/sweep_config_RL_HalfCheetah.json"
+    config_path = f"{results_dir}/sweep_config_RL_HalfCheetah_PPO.json"
     with open(config_path, 'w') as f:
         json.dump(sweep_config, f, indent=2)
         

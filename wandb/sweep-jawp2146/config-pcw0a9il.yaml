@@ -1,0 +1,36 @@
+wandb_version: 1
+
+adam_beta1:
+  value: 0.9
+adam_beta2:
+  value: 0.999
+adam_eps:
+  value: 1.0e-08
+adam_lr:
+  value: 0.0014954521668602702
+adam_weight_decay:
+  value: 1.0e-05
+batch_size:
+  value: 32
+dataset_size:
+  value: full
+embed_dim:
+  value: 128
+epochs:
+  value: 100
+hidden_dim:
+  value: 256
+lr_eta_min:
+  value: 1.0e-05
+lr_scheduler_type:
+  value: WarmupCosineAnnealing
+lr_warmup_epochs:
+  value: 5
+lr_warmup_factor:
+  value: 0.1
+max_seq_len:
+  value: 64
+optimizer_name:
+  value: ADAM
+seed:
+  value: 0

@@ -1,0 +1,65 @@
+_wandb:
+    value:
+        cli_version: 0.19.11
+        m: []
+        python_version: 3.10.17
+        t:
+            "1":
+                - 1
+                - 5
+                - 41
+                - 49
+                - 51
+                - 53
+                - 55
+            "2":
+                - 1
+                - 5
+                - 41
+                - 49
+                - 51
+                - 53
+                - 55
+            "3":
+                - 2
+                - 14
+                - 23
+                - 55
+            "4": 3.10.17
+            "5": 0.19.11
+            "8":
+                - 5
+            "12": 0.19.11
+            "13": linux-x86_64
+batch_size:
+    value: 64
+beta1:
+    value: 0.9
+beta2:
+    value: 0.999
+beta3:
+    value: 0.7500651167168026
+dataset_size:
+    value: full
+entropy_coef:
+    value: 0.02031675756133735
+epochs:
+    value: 100
+eps:
+    value: 1e-08
+eta:
+    value: 1.768677949613777e-05
+gamma:
+    value: 0.99
+hidden_dim:
+    value: 128
+lr_cutoff:
+    value: 27
+normgrad:
+    value: true
+optimizer_name:
+    value: VADAM
+power:
+    value: 2
+weight_decay:
+    value: 1e-05

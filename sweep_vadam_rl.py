@@ -17,7 +17,7 @@ def train_model(config=None):
         
         # Set up parameters for benchmarker
         params = {
-            'model': 'RLPolicy',  # For RL tasks
+            'model': 'PPOPolicy',  # Use PPO for better performance
             'dataset': 'HalfCheetah',  # RL environment
             'dataset_size': config.dataset_size,
             'device': 'mps' if torch.backends.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu',
@@ -29,6 +29,7 @@ def train_model(config=None):
             # RL specific parameters
             'gamma': config.gamma,  # Discount factor
             'entropy_coef': config.entropy_coef,  # Entropy coefficient for exploration
+            'eps_clip': config.eps_clip,  # PPO clipping parameter
         }
 
         # Add optimizer specific parameters
@@ -94,19 +95,20 @@ def create_vadam_sweep_config():
             
             # Fixed parameters
             'dataset_size': {'value': 'full'},
-            'epochs': {'value': 100},  # Fewer epochs for RL
+            'epochs': {'value': 20},  # Fewer epochs for RL
             'batch_size': {'value': 64},
             
             # RL specific parameters
             'gamma': {'value': 0.99},  # Discount factor
             'entropy_coef': {'distribution': 'uniform', 'min': 0.001, 'max': 0.05},
+            'eps_clip': {'value': 0.2},  # PPO clipping parameter
             'hidden_dim': {'value': 128},
             
             # VADAM parameters to optimize
-            'eta': {'distribution': 'log_uniform_values', 'min': 1e-5, 'max': 0.1},  # Base LR for VADAM
+            'eta': {'distribution': 'log_uniform_values', 'min': 1e-5, 'max': 0.001},  # Base LR for VADAM
             'beta1': {'value': 0.9},
             'beta2': {'value': 0.999},
-            'beta3': {'distribution': 'uniform', 'min': 0.1, 'max': 2.0},
+            'beta3': {'distribution': 'uniform', 'min': 0.1, 'max': 1.0},
             'power': {'value': 2},
             'normgrad': {'values': [True, False]},
             'lr_cutoff': {'distribution': 'int_uniform', 'min': 5, 'max': 30},
@@ -131,16 +133,17 @@ def create_adam_sweep_config():
             
             # Fixed parameters
             'dataset_size': {'value': 'full'},
-            'epochs': {'value': 100},  # Fewer epochs for RL
+            'epochs': {'value': 20},  # Fewer epochs for RL
             'batch_size': {'value': 64},
             
             # RL specific parameters
             'gamma': {'value': 0.99},  # Discount factor
             'entropy_coef': {'distribution': 'uniform', 'min': 0.001, 'max': 0.05},
+            'eps_clip': {'value': 0.2},  # PPO clipping parameter
             'hidden_dim': {'value': 128},
             
             # ADAM specific parameters to optimize (only LR)
-            'adam_lr': {'distribution': 'log_uniform_values', 'min': 1e-5, 'max': 0.1},  # Base LR for ADAM
+            'adam_lr': {'distribution': 'log_uniform_values', 'min': 1e-5, 'max': 0.001},  # Base LR for ADAM
             'adam_beta1': {'value': 0.9},
             'adam_beta2': {'value': 0.999},
             'adam_weight_decay': {'value': 1e-5},

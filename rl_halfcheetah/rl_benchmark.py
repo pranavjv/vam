@@ -13,10 +13,10 @@ from benchmarker import Benchmarker
 
 def plot_rl_results(results, title, filename):
     """Plot and save comparison charts for RL optimizer performance"""
-    plt.figure(figsize=(16, 12))
+    plt.figure(figsize=(16, 14))
     
     # Plot training loss curves
-    plt.subplot(2, 2, 1)
+    plt.subplot(3, 2, 1)
     for name, result in results.items():
         plt.plot(result['train_losses'], label=f"{name} - Train")
     
@@ -27,7 +27,7 @@ def plot_rl_results(results, title, filename):
     plt.grid(True, linestyle='--', alpha=0.6)
     
     # Plot reward curves
-    plt.subplot(2, 2, 2)
+    plt.subplot(3, 2, 2)
     for name, result in results.items():
         plt.plot(result['mean_rewards'], label=f"{name}")
     
@@ -37,8 +37,42 @@ def plot_rl_results(results, title, filename):
     plt.legend()
     plt.grid(True, linestyle='--', alpha=0.6)
     
+    # Plot policy losses (if available)
+    plt.subplot(3, 2, 3)
+    has_policy_loss = False
+    for name, result in results.items():
+        if 'policy_losses' in result:
+            plt.plot(result['policy_losses'], label=f"{name}")
+            has_policy_loss = True
+    
+    if has_policy_loss:
+        plt.title("Policy Loss Curves")
+        plt.xlabel("Epoch")
+        plt.ylabel("Policy Loss")
+        plt.legend()
+        plt.grid(True, linestyle='--', alpha=0.6)
+    else:
+        plt.title("Policy Loss Curves (Not Available)")
+    
+    # Plot value losses (if available)
+    plt.subplot(3, 2, 4)
+    has_value_loss = False
+    for name, result in results.items():
+        if 'value_losses' in result:
+            plt.plot(result['value_losses'], label=f"{name}")
+            has_value_loss = True
+    
+    if has_value_loss:
+        plt.title("Value Loss Curves")
+        plt.xlabel("Epoch")
+        plt.ylabel("Value Loss")
+        plt.legend()
+        plt.grid(True, linestyle='--', alpha=0.6)
+    else:
+        plt.title("Value Loss Curves (Not Available)")
+    
     # Bar chart comparing final training metrics
-    plt.subplot(2, 2, 3)
+    plt.subplot(3, 2, 5)
     names = list(results.keys())
     
     # Get train metrics
@@ -58,7 +92,7 @@ def plot_rl_results(results, title, filename):
     plt.grid(True, linestyle='--', alpha=0.6)
     
     # Bar chart comparing test metrics
-    plt.subplot(2, 2, 4)
+    plt.subplot(3, 2, 6)
     
     # Get test metrics
     test_rewards = [results[name]['test_acc'] for name in names]  # Test mean reward is stored as "test_acc"
@@ -88,9 +122,12 @@ def compare_optimizers(base_params):
     """Run RL benchmarks comparing ADAM and VADAM optimizers"""
     results = {}
     
+    # Use PPO model instead of simple RL policy
+    base_params['model'] = 'PPOPolicy'
+    
     # Run benchmark with Adam optimizer
     print("\n" + "="*50)
-    print(f"Running RL on HalfCheetah with ADAM optimizer")
+    print(f"Running RL on HalfCheetah with ADAM optimizer using PPO agent")
     print("="*50 + "\n")
     
     adam_params = base_params.copy()
@@ -104,17 +141,24 @@ def compare_optimizers(base_params):
     })
     benchmark_adam = Benchmarker(adam_params)
     adam_results = benchmark_adam.run()
+    
+    # Extract policy and value losses if recorded
+    if hasattr(benchmark_adam, 'policy_losses'):
+        adam_results['policy_losses'] = benchmark_adam.policy_losses
+    if hasattr(benchmark_adam, 'value_losses'):
+        adam_results['value_losses'] = benchmark_adam.value_losses
+    
     results['ADAM'] = adam_results
     
     # Run benchmark with VADAM optimizer
     print("\n" + "="*50)
-    print(f"Running RL on HalfCheetah with VADAM optimizer")
+    print(f"Running RL on HalfCheetah with VADAM optimizer using PPO agent")
     print("="*50 + "\n")
     
     vadam_params = base_params.copy()
     vadam_params['optimizer'] = 'VADAM'
     vadam_params.update({
-        'eta': base_params.get('vadam_eta', base_params.get('lr', 0.1)),
+        'eta': base_params.get('vadam_eta', base_params.get('lr', 0.01)),
         'beta1': base_params.get('vadam_beta1', 0.9),
         'beta2': base_params.get('vadam_beta2', 0.999),
         'beta3': base_params.get('vadam_beta3', 0.8),
@@ -126,6 +170,13 @@ def compare_optimizers(base_params):
     })
     benchmark_vadam = Benchmarker(vadam_params)
     vadam_results = benchmark_vadam.run()
+    
+    # Extract policy and value losses if recorded
+    if hasattr(benchmark_vadam, 'policy_losses'):
+        vadam_results['policy_losses'] = benchmark_vadam.policy_losses
+    if hasattr(benchmark_vadam, 'value_losses'):
+        vadam_results['value_losses'] = benchmark_vadam.value_losses
+    
     results['VADAM'] = vadam_results
     
     # Save results to file
@@ -153,11 +204,11 @@ def compare_optimizers(base_params):
     
     # Plot results
     plot_file = os.path.join(output_dir, f"HalfCheetah_RL_{timestamp}.png")
-    plot_rl_results(results, "Optimizer Comparison: RL on HalfCheetah", plot_file)
+    plot_rl_results(results, "Optimizer Comparison: RL on HalfCheetah with PPO Agent", plot_file)
     
     # Print head-to-head summary
     print("\n" + "="*50)
-    print(f"SUMMARY: RL on HalfCheetah")
+    print(f"SUMMARY: RL on HalfCheetah with PPO Agent")
     print("="*50)
     
     # Compare key metrics
@@ -173,9 +224,17 @@ def compare_optimizers(base_params):
     print(f"ADAM Training Time: {results['ADAM']['train_time']:.2f}s")
     print(f"VADAM Training Time: {results['VADAM']['train_time']:.2f}s")
     
+    # Print comparison
+    winner = "VADAM" if results['VADAM']['test_acc'] > results['ADAM']['test_acc'] else "ADAM"
+    difference = abs(results['VADAM']['test_acc'] - results['ADAM']['test_acc'])
+    
+    print("\n" + "-"*50)
+    print(f"Winner: {winner} (by {difference:.2f} reward)")
+    print("-"*50)
+    
     return results
 
-def run_rl_benchmark(epochs=30, hidden_dim=256, batch_size=64, seed=42):
+def run_rl_benchmark(epochs=50, hidden_dim=256, batch_size=64, seed=42):
     """Run benchmark for RL HalfCheetah task"""
     # Set random seeds for reproducibility
     torch.manual_seed(seed)
@@ -183,7 +242,7 @@ def run_rl_benchmark(epochs=30, hidden_dim=256, batch_size=64, seed=42):
     
     # Set up base parameters
     base_params = {
-        'model': 'RLPolicy',
+        'model': 'PPOPolicy',  # Use PPO agent
         'dataset': 'HalfCheetah',
         'dataset_size': 'small',
         'device': 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu',
@@ -195,7 +254,8 @@ def run_rl_benchmark(epochs=30, hidden_dim=256, batch_size=64, seed=42):
         
         # RL specific parameters
         'gamma': 0.99,  # Discount factor
-        'entropy_coef': 0.01,  # Entropy coefficient for exploration
+        'entropy_coef': 0.05,  # Entropy coefficient for exploration
+        'eps_clip': 0.2,  # PPO clipping parameter
         
         # General optimization parameters
         'lr': 0.01,
@@ -204,7 +264,7 @@ def run_rl_benchmark(epochs=30, hidden_dim=256, batch_size=64, seed=42):
         'adam_beta1': 0.9,
         'adam_beta2': 0.999,
         'adam_eps': 1e-8,
-        'adam_weight_decay': 0,
+        'adam_weight_decay': 1e-8,
         
         # VADAM specific parameters
         'vadam_eta': 0.01,
@@ -212,7 +272,7 @@ def run_rl_benchmark(epochs=30, hidden_dim=256, batch_size=64, seed=42):
         'vadam_beta2': 0.999,
         'vadam_beta3': 1.0,
         'vadam_eps': 1e-8,
-        'vadam_weight_decay': 0,
+        'vadam_weight_decay': 1e-8,
         'vadam_power': 2,
         'vadam_normgrad': False,
         'vadam_lr_cutoff': 19
@@ -223,8 +283,8 @@ def run_rl_benchmark(epochs=30, hidden_dim=256, batch_size=64, seed=42):
 if __name__ == "__main__":
     import argparse
     
-    parser = argparse.ArgumentParser(description='Run RL benchmark comparing VADAM and Adam')
-    parser.add_argument('--epochs', type=int, default=30, help='Number of epochs to train')
+    parser = argparse.ArgumentParser(description='Run RL benchmark comparing VADAM and Adam with PPO agent')
+    parser.add_argument('--epochs', type=int, default=50, help='Number of epochs to train')
     parser.add_argument('--hidden_dim', type=int, default=256, help='Hidden dimension for policy network')
     parser.add_argument('--batch_size', type=int, default=64, help='Batch size for training')
     parser.add_argument('--seed', type=int, default=42, help='Random seed for reproducibility')
@@ -242,7 +302,7 @@ if __name__ == "__main__":
         device = 'cpu'
         print("Using CPU")
     
-    print("\nStarting RL benchmark...")
+    print("\nStarting RL benchmark with PPO agent...")
     start_time = time.time()
     
     results = run_rl_benchmark(

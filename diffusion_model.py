@@ -28,6 +28,41 @@ class TimeEmbedding(nn.Module):
         # Pass through MLP
         return self.mlp(emb)
 
+class SelfAttention(nn.Module):
+    """Self-attention module for diffusion model"""
+    def __init__(self, channels, num_heads=4):
+        super().__init__()
+        self.channels = channels
+        self.num_heads = num_heads
+        self.head_dim = channels // num_heads
+        assert channels % num_heads == 0, "channels must be divisible by num_heads"
+        
+        self.norm = nn.GroupNorm(8, channels)
+        self.qkv = nn.Conv2d(channels, channels * 3, 1)
+        self.proj = nn.Conv2d(channels, channels, 1)
+        
+    def forward(self, x):
+        b, c, h, w = x.shape
+        
+        # Apply normalization
+        x_norm = self.norm(x)
+        
+        # Compute query, key, value
+        qkv = self.qkv(x_norm).reshape(b, 3, self.num_heads, self.head_dim, h*w)
+        q, k, v = qkv[:, 0], qkv[:, 1], qkv[:, 2]  # (b, num_heads, head_dim, h*w)
+        
+        # Compute attention
+        q = q.transpose(-1, -2)  # (b, num_heads, h*w, head_dim)
+        attention = torch.matmul(q, k) * (self.head_dim ** -0.5)  # (b, num_heads, h*w, h*w)
+        attention = F.softmax(attention, dim=-1)
+        
+        # Apply attention to values
+        out = torch.matmul(attention, v.transpose(-1, -2))  # (b, num_heads, h*w, head_dim)
+        out = out.transpose(-1, -2).reshape(b, c, h, w)
+        
+        # Final projection
+        return x + self.proj(out)
+
 class ConvBlock(nn.Module):
     def __init__(self, in_channels, out_channels, time_channels, dropout_rate=0.1):
         super().__init__()
@@ -68,7 +103,7 @@ class ConvBlock(nn.Module):
         return h + self.shortcut(x)
 
 class EnhancedUNet(nn.Module):
-    def __init__(self, in_channels=1, out_channels=1, base_channels=64, time_emb_dim=128):
+    def __init__(self, in_channels=1, out_channels=1, base_channels=64, time_emb_dim=128, use_attention=True):
         super().__init__()
         # Time embedding
         self.time_embedding = TimeEmbedding(time_emb_dim)
@@ -81,32 +116,39 @@ class EnhancedUNet(nn.Module):
         c1 = base_channels * 2
         c2 = base_channels * 4
         c3 = base_channels * 8
+        c4 = base_channels * 8  # Keep the deepest level fixed to avoid excessive growth
         
         # Downsampling blocks
         self.down1 = ConvBlock(c0, c1, time_emb_dim)
         self.down2 = ConvBlock(c1, c2, time_emb_dim)
         self.down3 = ConvBlock(c2, c3, time_emb_dim)
+        self.down4 = ConvBlock(c3, c4, time_emb_dim)
         
         # Downsampling operations
         self.pool1 = nn.MaxPool2d(2)
         self.pool2 = nn.MaxPool2d(2)
         self.pool3 = nn.MaxPool2d(2)
+        self.pool4 = nn.MaxPool2d(2)
         
-        # Middle blocks for better expressivity
-        self.middle1 = ConvBlock(c3, c3, time_emb_dim)
-        self.middle2 = ConvBlock(c3, c3, time_emb_dim)
+        # Middle blocks with attention
+        self.middle1 = ConvBlock(c4, c4, time_emb_dim)
+        self.middle_attn = SelfAttention(c4) if use_attention else nn.Identity()
+        self.middle2 = ConvBlock(c4, c4, time_emb_dim)
         
         # Upsampling blocks
-        self.up1 = ConvBlock(c3 + c3, c2, time_emb_dim)  # Skip from down3
-        self.up2 = ConvBlock(c2 + c2, c1, time_emb_dim)  # Skip from down2
-        self.up3 = ConvBlock(c1 + c1, c0, time_emb_dim)  # Skip from down1
+        self.up1 = ConvBlock(c4 + c4, c3, time_emb_dim)  # Skip from down4
+        self.up1_attn = SelfAttention(c3) if use_attention else nn.Identity()
+        
+        self.up2 = ConvBlock(c3 + c3, c2, time_emb_dim)  # Skip from down3
+        self.up2_attn = SelfAttention(c2) if use_attention else nn.Identity()
+        
+        self.up3 = ConvBlock(c2 + c2, c1, time_emb_dim)  # Skip from down2
+        self.up4 = ConvBlock(c1 + c1, c0, time_emb_dim)  # Skip from down1
         
         # Final output
-        self.out_conv = nn.Sequential(
-            nn.GroupNorm(8, c0),
-            nn.SiLU(),
-            nn.Conv2d(c0, out_channels, 3, padding=1)
-        )
+        self.out_norm = nn.GroupNorm(8, c0)
+        self.out_act = nn.SiLU()
+        self.out_conv = nn.Conv2d(c0, out_channels, 3, padding=1)
     
     def forward(self, x, t):
         # Time embedding
@@ -125,25 +167,39 @@ class EnhancedUNet(nn.Module):
         x3 = self.down3(x2_pool, t_emb)
         x3_pool = self.pool3(x3)
         
-        # Middle blocks
-        x_middle = self.middle1(x3_pool, t_emb)
+        x4 = self.down4(x3_pool, t_emb)
+        x4_pool = self.pool4(x4)
+        
+        # Middle blocks with attention
+        x_middle = self.middle1(x4_pool, t_emb)
+        x_middle = self.middle_attn(x_middle)
         x_middle = self.middle2(x_middle, t_emb)
         
         # Upsampling path with skip connections
-        x_up1 = F.interpolate(x_middle, size=x3.shape[2:], mode='nearest')
-        x_up1 = torch.cat([x_up1, x3], dim=1)  # Skip connection
+        x_up1 = F.interpolate(x_middle, size=x4.shape[2:], mode='nearest')
+        x_up1 = torch.cat([x_up1, x4], dim=1)  # Skip connection
         x_up1 = self.up1(x_up1, t_emb)
+        x_up1 = self.up1_attn(x_up1)
         
-        x_up2 = F.interpolate(x_up1, size=x2.shape[2:], mode='nearest')
-        x_up2 = torch.cat([x_up2, x2], dim=1)  # Skip connection
+        x_up2 = F.interpolate(x_up1, size=x3.shape[2:], mode='nearest')
+        x_up2 = torch.cat([x_up2, x3], dim=1)  # Skip connection
         x_up2 = self.up2(x_up2, t_emb)
+        x_up2 = self.up2_attn(x_up2)
         
-        x_up3 = F.interpolate(x_up2, size=x1.shape[2:], mode='nearest')
-        x_up3 = torch.cat([x_up3, x1], dim=1)  # Skip connection
+        x_up3 = F.interpolate(x_up2, size=x2.shape[2:], mode='nearest')
+        x_up3 = torch.cat([x_up3, x2], dim=1)  # Skip connection
         x_up3 = self.up3(x_up3, t_emb)
         
+        x_up4 = F.interpolate(x_up3, size=x1.shape[2:], mode='nearest')
+        x_up4 = torch.cat([x_up4, x1], dim=1)  # Skip connection
+        x_up4 = self.up4(x_up4, t_emb)
+        
         # Final output
-        return self.out_conv(x_up3)
+        x_out = self.out_norm(x_up4)
+        x_out = self.out_act(x_out)
+        x_out = self.out_conv(x_out)
+        
+        return x_out
 
 # Keep the SimpleUNet for backwards compatibility
 class SimpleUNet(nn.Module):

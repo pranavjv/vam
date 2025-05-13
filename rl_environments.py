@@ -65,11 +65,13 @@ class RLEnvironment:
     def evaluate_policy(self, policy_net, n_episodes=5):
         """Evaluate policy over multiple episodes"""
         total_rewards = []
+        episode_lengths = []
         
         for _ in range(n_episodes):
             state, _ = self.env.reset()
             done = False
             episode_reward = 0
+            step_count = 0
             
             while not done:
                 # Get deterministic action
@@ -80,12 +82,17 @@ class RLEnvironment:
                 
                 episode_reward += reward
                 state = next_state
+                step_count += 1
             
             total_rewards.append(episode_reward)
+            episode_lengths.append(step_count)
         
         return {
             'mean_reward': np.mean(total_rewards),
-            'std_reward': np.std(total_rewards)
+            'std_reward': np.std(total_rewards),
+            'min_reward': np.min(total_rewards),
+            'max_reward': np.max(total_rewards),
+            'mean_length': np.mean(episode_lengths)
         }
     
     def get_dataloader(self, states, actions, batch_size=None):

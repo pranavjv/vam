@@ -18,12 +18,14 @@ from VADAM import VADAM
 import architectures
 import rl_architectures
 import rl_environments
+# Import PPO architecture
+from ppo_architectures import PPOAgent
 
 class Benchmarker:
     def __init__(self,p= None):
         # Default parameters
         default_params = {
-            'model': 'SimpleCNN', # 'SimpleCNN', 'TransformerModel', 'MLPModel', 'RLPolicy'
+            'model': 'SimpleCNN', # 'SimpleCNN', 'TransformerModel', 'MLPModel', 'RLPolicy', 'PPOPolicy'
             'device': 'mps', # 'mps' or 'cpu'
             'dataset': 'CIFAR10', # 'CIFAR10', 'WikiText2', 'IMDB', 'HalfCheetah'
             'dataset_size': 'small', # 'small' or 'full'
@@ -36,6 +38,9 @@ class Benchmarker:
             'epochs': 5,         # Number of training epochs
             # Add seed for reproducible weight initialization
             'seed': 0,           # Set to an integer for reproducible initialization
+            # PPO specific parameters
+            'eps_clip': 0.2,     # PPO clipping parameter
+            'entropy_coef': 0.01, # Entropy coefficient for PPO
         }
 
         if p is None:
@@ -78,6 +83,9 @@ class Benchmarker:
         # For RL
         self.episode_rewards = []
         self.mean_rewards = []
+        # For PPO specific metrics
+        self.policy_losses = []
+        self.value_losses = []
         
         # --- Set Seed for Reproducible Weight Initialization ---
         seed = self.p.get('seed')
@@ -279,6 +287,23 @@ class Benchmarker:
                 self.model = self.policy_net
             else:
                 raise ValueError(f"RLPolicy not compatible with dataset: {self.p['dataset']}")
+        elif self.p['model'] == 'PPOPolicy':
+            # For PPO policy
+            if self.p['dataset'] == 'HalfCheetah':
+                # Initialize PPO agent
+                self.ppo_agent = PPOAgent(
+                    state_dim=self.rl_env.state_dim,
+                    action_dim=self.rl_env.action_dim,
+                    hidden_dim=self.p['hidden_dim'],
+                    lr=self.p['lr'],
+                    eps_clip=self.p['eps_clip'],
+                    entropy_coef=self.p['entropy_coef']
+                ).to(self.device)
+                
+                # Reference to the PPO agent as the main model
+                self.model = self.ppo_agent
+            else:
+                raise ValueError(f"PPOPolicy not compatible with dataset: {self.p['dataset']}")
         else:
             raise ValueError(f"Unknown model: {self.p['model']}")
 
@@ -303,6 +328,9 @@ class Benchmarker:
                 self.value_optimizer = VADAM(self.value_net.parameters(), **vadam_params)
                 # Reference to policy optimizer as the main optimizer
                 self.optimizer = self.policy_optimizer
+            elif self.p['model'] == 'PPOPolicy':
+                # Use VADAM for the PPO agent
+                self.optimizer = VADAM(self.ppo_agent.parameters(), **vadam_params)
             else:
                 self.optimizer = VADAM(self.model.parameters(), **vadam_params)
                 
@@ -321,6 +349,9 @@ class Benchmarker:
                 self.value_optimizer = torch.optim.Adam(self.value_net.parameters(), **adam_params)
                 # Reference to policy optimizer as the main optimizer
                 self.optimizer = self.policy_optimizer
+            elif self.p['model'] == 'PPOPolicy':
+                # Use Adam for the PPO agent
+                self.optimizer = torch.optim.Adam(self.ppo_agent.parameters(), **adam_params)
             else:
                 self.optimizer = torch.optim.Adam(self.model.parameters(), **adam_params)
         else:
@@ -330,62 +361,162 @@ class Benchmarker:
         if self.task_type == "reinforcement_learning":
             # Reinforcement learning training loop
             
-            # Sample batch of trajectories
-            batch = self.rl_env.sample_batch(self.policy_net)
-            
-            states = batch['states']
-            actions = batch['actions']
-            rewards = batch['rewards']
-            next_states = batch['next_states']
-            dones = batch['dones']
-            avg_reward = batch['avg_reward']
-            
-            # Compute returns and advantages
-            with torch.no_grad():
-                values = self.value_net(states)
-                next_values = self.value_net(next_states)
+            if self.p['model'] == 'PPOPolicy':
+                # PPO training
                 
-                # Compute returns with bootstrapping
-                returns = rewards + (1 - dones) * self.p.get('gamma', 0.99) * next_values
+                # Setup optimizer for PPO based on optimizer type
+                if not hasattr(self.ppo_agent, 'actor_optim') or self.ppo_agent.actor_optim is None:
+                    if self.p['optimizer'] == 'ADAM':
+                        optimizer_params = {
+                            'lr': self.p.get('lr', 0.001),
+                            'betas': (self.p.get('beta1', 0.9), self.p.get('beta2', 0.999)),
+                            'eps': self.p.get('eps', 1e-8),
+                            'weight_decay': self.p.get('weight_decay', 0)
+                        }
+                        self.ppo_agent.setup_optimizers('ADAM', optimizer_params)
+                    elif self.p['optimizer'] == 'VADAM':
+                        optimizer_params = {
+                            'lr': self.p.get('lr', 0.001),  # Not used directly but passed for consistency
+                            'eta': self.p.get('eta', self.p.get('lr', 0.001)),
+                            'beta1': self.p.get('beta1', 0.9),
+                            'beta2': self.p.get('beta2', 0.999),
+                            'beta3': self.p.get('beta3', 1.0),
+                            'eps': self.p.get('eps', 1e-8),
+                            'weight_decay': self.p.get('weight_decay', 0),
+                            'power': self.p.get('power', 2),
+                            'normgrad': self.p.get('normgrad', True),
+                            'lr_cutoff': self.p.get('lr_cutoff', 19)
+                        }
+                        # VADAM optimizers will be created in the benchmarker's train_ppo method
                 
-                # Compute advantages
-                advantages = returns - values
+                # Sample batch of trajectories
+                batch = self.rl_env.sample_batch(self.ppo_agent.pi, n_steps=2048)
                 
-            # Update value network
-            self.value_optimizer.zero_grad()
-            current_values = self.value_net(states)
-            value_loss = F.mse_loss(current_values, returns.detach())
-            value_loss.backward()
-            self.value_optimizer.step()
+                # Ensure all tensors are on the right device
+                states = batch['states'].to(self.device)
+                actions = batch['actions'].to(self.device)
+                rewards = batch['rewards'].to(self.device)
+                next_states = batch['next_states'].to(self.device)
+                dones = batch['dones'].to(self.device)
+                avg_reward = batch['avg_reward']
+                
+                # Convert for numpy processing
+                states_np = states.cpu().numpy()
+                actions_np = actions.cpu().numpy()
+                rewards_np = rewards.cpu().numpy()
+                next_states_np = next_states.cpu().numpy()
+                dones_np = dones.cpu().numpy()
+                
+                # Compute values for the observed states
+                with torch.no_grad():
+                    values = self.ppo_agent.critic(states).cpu().numpy()
+                    
+                    # For VADAM, we need to handle optimizer creation here
+                    if self.p['optimizer'] == 'VADAM' and (not hasattr(self.ppo_agent, 'actor_optim') or self.ppo_agent.actor_optim is None):
+                        # Create VADAM optimizers for the PPO agent's actor and critic
+                        vadam_params = {
+                            'beta1': self.p.get('beta1', 0.9),
+                            'beta2': self.p.get('beta2', 0.999),
+                            'beta3': self.p.get('beta3', 1.0),
+                            'eta': self.p.get('eta', self.p.get('lr', 0.001)),
+                            'eps': self.p.get('eps', 1e-8),
+                            'weight_decay': self.p.get('weight_decay', 0),
+                            'power': self.p.get('power', 2),
+                            'normgrad': self.p.get('normgrad', True),
+                            'lr_cutoff': self.p.get('lr_cutoff', 19)
+                        }
+                        self.ppo_agent.actor_optim = VADAM(self.ppo_agent.pi.parameters(), **vadam_params)
+                        self.ppo_agent.critic_optim = VADAM(self.ppo_agent.critic.parameters(), **vadam_params)
+                
+                # Forward pass to get action logprobs
+                _, action_logprob, _ = self.ppo_agent.forward(states)
+                action_logprob = action_logprob.detach().cpu().numpy()
+                
+                # Update the PPO agent
+                policy_loss, value_loss = self.ppo_agent.update(
+                    states_np, actions_np, rewards_np.squeeze(), next_states_np, dones_np.squeeze(), action_logprob, values.squeeze()
+                )
+                
+                # Track metrics and losses
+                total_loss = policy_loss + value_loss
+                
+                print(f'Epoch {epoch} | Policy Loss: {policy_loss:.6f} | Value Loss: {value_loss:.6f} | Avg Reward: {avg_reward:.2f}')
+                
+                # Store the losses
+                self.policy_losses.append(policy_loss)
+                self.value_losses.append(value_loss)
+                
+                # Evaluate policy
+                eval_results = self.rl_env.evaluate_policy(self.ppo_agent.pi)
+                self.mean_rewards.append(eval_results['mean_reward'])
+                
+                print(f'Evaluation | Mean Reward: {eval_results["mean_reward"]:.2f} | Std Reward: {eval_results["std_reward"]:.2f}')
+                
+                return total_loss, None, None
             
-            # Update policy network
-            self.policy_optimizer.zero_grad()
-            mean, std = self.policy_net(states)
-            dist = torch.distributions.Normal(mean, std)
-            log_probs = dist.log_prob(actions).sum(dim=1, keepdim=True)
-            
-            # Policy gradient loss
-            policy_loss = -(log_probs * advantages.detach()).mean()
-            
-            # Add entropy regularization
-            entropy = dist.entropy().mean()
-            policy_loss = policy_loss - self.p.get('entropy_coef', 0.01) * entropy
-            
-            policy_loss.backward()
-            self.policy_optimizer.step()
-            
-            # Record metrics
-            total_loss = policy_loss.item() + value_loss.item()
-            
-            print(f'Epoch {epoch} | Policy Loss: {policy_loss.item():.6f} | Value Loss: {value_loss.item():.6f} | Avg Reward: {avg_reward:.2f}')
-            
-            # Evaluate policy
-            eval_results = self.rl_env.evaluate_policy(self.policy_net)
-            self.mean_rewards.append(eval_results['mean_reward'])
-            
-            print(f'Evaluation | Mean Reward: {eval_results["mean_reward"]:.2f} | Std Reward: {eval_results["std_reward"]:.2f}')
-            
-            return total_loss, None, None
+            else:
+                # Original RL Policy training
+                
+                # Sample batch of trajectories
+                batch = self.rl_env.sample_batch(self.policy_net)
+                
+                states = batch['states']
+                actions = batch['actions']
+                rewards = batch['rewards']
+                next_states = batch['next_states']
+                dones = batch['dones']
+                avg_reward = batch['avg_reward']
+                
+                # Compute returns and advantages
+                with torch.no_grad():
+                    values = self.value_net(states)
+                    next_values = self.value_net(next_states)
+                    
+                    # Compute returns with bootstrapping
+                    returns = rewards + (1 - dones) * self.p.get('gamma', 0.99) * next_values
+                    
+                    # Compute advantages
+                    advantages = returns - values
+                    
+                # Update value network
+                self.value_optimizer.zero_grad()
+                current_values = self.value_net(states)
+                value_loss = F.mse_loss(current_values, returns.detach())
+                value_loss.backward()
+                self.value_optimizer.step()
+                
+                # Update policy network
+                self.policy_optimizer.zero_grad()
+                mean, std = self.policy_net(states)
+                dist = torch.distributions.Normal(mean, std)
+                log_probs = dist.log_prob(actions).sum(dim=1, keepdim=True)
+                
+                # Policy gradient loss
+                policy_loss = -(log_probs * advantages.detach()).mean()
+                
+                # Add entropy regularization
+                entropy = dist.entropy().mean()
+                policy_loss = policy_loss - self.p.get('entropy_coef', 0.01) * entropy
+                
+                policy_loss.backward()
+                self.policy_optimizer.step()
+                
+                # Record metrics
+                total_loss = policy_loss.item() + value_loss.item()
+                
+                print(f'Epoch {epoch} | Policy Loss: {policy_loss.item():.6f} | Value Loss: {value_loss.item():.6f} | Avg Reward: {avg_reward:.2f}')
+                
+                # Store the losses
+                self.policy_losses.append(policy_loss.item())
+                self.value_losses.append(value_loss.item())
+                
+                # Evaluate policy
+                eval_results = self.rl_env.evaluate_policy(self.policy_net)
+                self.mean_rewards.append(eval_results['mean_reward'])
+                
+                print(f'Evaluation | Mean Reward: {eval_results["mean_reward"]:.2f} | Std Reward: {eval_results["std_reward"]:.2f}')
+                
+                return total_loss, None, None
         else:
             self.model.train()
             total_loss = 0
@@ -503,7 +634,10 @@ class Benchmarker:
             self.model.eval()
             
             with torch.no_grad():
-                eval_results = self.rl_env.evaluate_policy(self.policy_net)
+                if self.p['model'] == 'PPOPolicy':
+                    eval_results = self.rl_env.evaluate_policy(self.ppo_agent.pi)
+                else:
+                    eval_results = self.rl_env.evaluate_policy(self.policy_net)
                 
             return 0.0, eval_results['mean_reward'], None  # Use mean reward as "accuracy" for RL
         else:
@@ -632,7 +766,16 @@ class Benchmarker:
             self.final_train_acc = self.mean_rewards[-1]  # Use last mean reward as final "accuracy"
             
             # Evaluate on test (more episodes for final evaluation)
-            _, self.test_acc, _ = self.evaluate()
+            if self.p['model'] == 'PPOPolicy':
+                # Evaluate the PPO agent pi network
+                self.model.eval()
+                with torch.no_grad():
+                    eval_results = self.rl_env.evaluate_policy(self.ppo_agent.pi, n_episodes=10)
+                self.test_acc = eval_results['mean_reward']
+            else:
+                # Use original evaluation
+                _, self.test_acc, _ = self.evaluate()
+                
             self.test_loss = 0.0  # Not relevant for RL
             
             print(f'Final Mean Reward: {self.final_train_acc:.2f} | Test Mean Reward: {self.test_acc:.2f}')
@@ -676,6 +819,8 @@ class Benchmarker:
         if self.task_type == "reinforcement_learning":
             self.results.update({
                 'mean_rewards': self.mean_rewards,
+                'policy_losses': self.policy_losses,
+                'value_losses': self.value_losses,
             })
         
         return self.results
