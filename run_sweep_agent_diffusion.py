@@ -73,18 +73,21 @@ class DiffusionSweepTrainer:
             transform=transform
         )
         
-        # Use a small subset for quick evaluation during sweep
-        subset_size = int(0.1 * len(train_dataset))  # 10% of training data
-        val_size = int(0.02 * len(train_dataset))  # 2% of training data
-        rest_size = len(train_dataset) - subset_size - val_size
-        small_train, val_set, _ = random_split(
+        # Use full dataset for sweeps
+        # Split into train and validation
+        train_size = int(0.9 * len(train_dataset))
+        val_size = len(train_dataset) - train_size
+        
+        # Use fixed seed for consistent splits
+        generator = torch.Generator().manual_seed(42)
+        train_subset, val_set = random_split(
             train_dataset, 
-            [subset_size, val_size, rest_size],
-            generator=torch.Generator().manual_seed(42)  # For reproducibility
+            [train_size, val_size],
+            generator=generator
         )
         
         self.train_loader = DataLoader(
-            small_train,
+            train_subset,
             batch_size=self.config.batch_size,
             shuffle=True,
             num_workers=2)
@@ -220,6 +223,13 @@ class DiffusionSweepTrainer:
         import time
         start_time = time.time()
         
+        # Initialize best validation loss for model saving
+        best_val_loss = float('inf')
+        best_model_path = None
+        
+        # Create directory for saving models
+        os.makedirs("saved_models/diffusion", exist_ok=True)
+        
         for epoch in range(1, self.config.epochs + 1):
             # Train
             train_loss = self.train_epoch(epoch)
@@ -230,6 +240,21 @@ class DiffusionSweepTrainer:
             self.val_losses.append(val_loss)
             
             print(f'Epoch {epoch} | Train Loss: {train_loss:.6f} | Val Loss: {val_loss:.6f}')
+            
+            # Save best model
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+                model_filename = f"saved_models/diffusion/diffusion_{self.config.optimizer}_{wandb.run.id}_best.pt"
+                torch.save({
+                    'epoch': epoch,
+                    'model_state_dict': self.unet.state_dict(),
+                    'optimizer_state_dict': self.optimizer.state_dict(),
+                    'val_loss': val_loss,
+                    'train_loss': train_loss,
+                    'config': {k: v for k, v in vars(self.config).items() if not k.startswith('_')}
+                }, model_filename)
+                best_model_path = model_filename
+                print(f"Saved best model with val_loss={val_loss:.6f} to {model_filename}")
             
             # Generate samples at regular intervals or final epoch
             sample_interval = getattr(self.config, 'sample_every', 5)
@@ -242,14 +267,16 @@ class DiffusionSweepTrainer:
                     "epoch": epoch,
                     "train_loss": train_loss,
                     "val_loss": val_loss,
-                    "samples": samples_grid
+                    "samples": samples_grid,
+                    "best_val_loss": best_val_loss
                 })
             else:
                 # Just log metrics without samples
                 wandb.log({
                     "epoch": epoch,
                     "train_loss": train_loss,
-                    "val_loss": val_loss
+                    "val_loss": val_loss,
+                    "best_val_loss": best_val_loss
                 })
         
         # Evaluate on test set
@@ -268,7 +295,9 @@ class DiffusionSweepTrainer:
             "final_val_loss": self.val_losses[-1],
             "test_loss": test_loss,
             "train_time": self.train_time,
-            "final_samples": final_samples_grid
+            "final_samples": final_samples_grid,
+            "best_val_loss": best_val_loss,
+            "best_model_path": best_model_path
         })
         
         # Return validation loss as the main optimization metric
@@ -305,13 +334,13 @@ def create_sweep_config(optimizer_type):
             'optimizer': {'value': optimizer_type},
             'device': {'value': 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'},
             'seed': {'value': 42},
-            'epochs': {'value': 15},  # More epochs for better diffusion training
-            'batch_size': {'value': 64},
+            'epochs': {'value': 50},  # More epochs for full dataset training
+            'batch_size': {'value': 128},  # Allow larger batch sizes for faster training
             
             # Diffusion specific parameters - larger model
-            'unet_base_channels': {'values': [64, 96, 128, 192]},  # Increased channel options
-            'unet_time_embed_dim': {'values': [128, 256, 384]},    # Larger time embeddings
-            'num_timesteps': {'values': [200, 400, 800]},          # More diffusion steps
+            'unet_base_channels': {'value': 96},  # Increased channel options
+            'unet_time_embed_dim': {'value': 128},    # Larger time embeddings
+            'num_timesteps': {'value':400},          # More diffusion steps
             'beta_min': {'value': 1e-4},
             'beta_max': {'value': 0.02},
             'use_attention': {'value': True},  # Always use attention for better quality
@@ -321,7 +350,7 @@ def create_sweep_config(optimizer_type):
             'beta1': {'value': 0.9},
             'beta2': {'value': 0.999},
             'eps': {'value': 1e-8},
-            'weight_decay': {'distribution': 'log_uniform_values', 'min': 1e-8, 'max': 1e-3},
+            'weight_decay': {'value': 1e-5},
         }
     }
     
@@ -331,7 +360,7 @@ def create_sweep_config(optimizer_type):
         sweep_config['parameters']['lr'] = {
             'distribution': 'log_uniform_values',
             'min': 1e-5,
-            'max': 1e-3
+            'max': 1e-1
         }
     else:  # VADAM
         # For VADAM, we sweep learning rate, beta3, and lr_cutoff
@@ -339,7 +368,7 @@ def create_sweep_config(optimizer_type):
             'lr': {
                 'distribution': 'log_uniform_values',
                 'min': 1e-5,
-                'max': 1e-3
+                'max': 1e-1
             },
             'beta3': {
                 'distribution': 'uniform',
@@ -351,7 +380,7 @@ def create_sweep_config(optimizer_type):
                 'min': 5,
                 'max': 30
             },
-            'power': {'values': [1, 2, 3]},
+            'power': {'value': 2},
             'normgrad': {'values': [True, False]}
         })
     
@@ -367,6 +396,11 @@ def run_sweep_agent(optimizer_name, count=10):
     """
     # Ensure wandb is logged in
     wandb.login()
+    
+    print(f"\n{'='*60}")
+    print(f"Running diffusion model sweeps on FULL MNIST dataset with {optimizer_name} optimizer")
+    print(f"Using larger model architecture and optimizing for validation loss")
+    print(f"{'='*60}\n")
     
     # Create a sweep configuration
     sweep_config = create_sweep_config(optimizer_name)
