@@ -29,3 +29,8 @@ data/
 *.log
 htmlcov/
 .coverage
+
+.png
+plots/
+saved_models/
+eigenvalue_experiment_plots/

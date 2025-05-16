@@ -1,0 +1,65 @@
+{
+  "method": "bayes",
+  "metric": {
+    "name": "optimization_metric",
+    "goal": "minimize"
+  },
+  "parameters": {
+    "optimizer_name": {
+      "value": "RMSPROP"
+    },
+    "model": {
+      "value": "DeeperCNN"
+    },
+    "dataset": {
+      "value": "CIFAR10"
+    },
+    "dataset_size": {
+      "value": "full"
+    },
+    "epochs": {
+      "value": 100
+    },
+    "batch_size": {
+      "value": 1024
+    },
+    "lr_scheduler_type": {
+      "value": "WarmupCosineAnnealing"
+    },
+    "lr_warmup_epochs": {
+      "value": 5
+    },
+    "lr_warmup_factor": {
+      "value": 0.1
+    },
+    "lr_eta_min": {
+      "value": 1e-05
+    },
+    "rmsprop_lr": {
+      "distribution": "log_uniform_values",
+      "min": 1e-05,
+      "max": 0.1
+    },
+    "rmsprop_alpha": {
+      "value": 0.99
+    },
+    "rmsprop_eps": {
+      "value": 1e-08
+    },
+    "rmsprop_momentum": {
+      "value": 0.2
+    },
+    "rmsprop_weight_decay": {
+      "value": 1e-05
+    },
+    "embed_dim": {
+      "value": 300
+    },
+    "hidden_dim": {
+      "value": 512
+    },
+    "max_seq_len": {
+      "value": 256
+    }
+  }
+}

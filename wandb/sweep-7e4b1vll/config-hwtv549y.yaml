@@ -1,0 +1,44 @@
+wandb_version: 1
+
+batch_size:
+  value: 128
+beta1:
+  value: 0.9
+beta2:
+  value: 0.999
+beta3:
+  value: 1.7297366237508198
+beta_max:
+  value: 0.02
+beta_min:
+  value: 0.0001
+device:
+  value: cuda
+epochs:
+  value: 50
+eps:
+  value: 1.0e-08
+lr:
+  value: 1.1894401956440446e-05
+lr_cutoff:
+  value: 9
+normgrad:
+  value: true
+num_timesteps:
+  value: 400
+optimizer:
+  value: VADAM
+power:
+  value: 2
+sample_every:
+  value: 5
+seed:
+  value: 42
+unet_base_channels:
+  value: 96
+unet_time_embed_dim:
+  value: 128
+use_attention:
+  value: true
+weight_decay:
+  value: 1.0e-05

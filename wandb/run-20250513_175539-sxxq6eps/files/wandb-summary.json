@@ -1,0 +1,1 @@
+{"_wandb":{"runtime":611},"vadam_effective_lr":0.009967318934605781,"epoch":20,"training_loss":0.3356121571696534,"_runtime":611.464073389,"_step":20,"max_hessian_eigenvalue_at_epoch_start":212.3771209716797,"_timestamp":1.7471595505776582e+09,"max_hessian_eigenvalue_post_training":143.40206909179688}

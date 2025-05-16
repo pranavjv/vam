@@ -1,0 +1,42 @@
+{
+  "os": "Linux-6.8.0-52-generic-x86_64-with-glibc2.35",
+  "python": "CPython 3.10.12",
+  "startedAt": "2025-05-13T18:05:51.229416Z",
+  "program": "/home/ubuntu/vam/train_and_analyze_eigenvalues.py",
+  "codePath": "train_and_analyze_eigenvalues.py",
+  "git": {
+    "remote": "https://github.com/pranavjv/vam.git",
+    "commit": "1552d2a8bfb6d99af16c4bda2f135e8a7d6bdc36"
+  },
+  "email": "lucasschorling@icloud.com",
+  "root": "/home/ubuntu/vam",
+  "host": "143-47-125-213",
+  "executable": "/bin/python",
+  "codePathLocal": "train_and_analyze_eigenvalues.py",
+  "cpu_count": 30,
+  "cpu_count_logical": 30,
+  "gpu": "NVIDIA A10",
+  "gpu_count": 1,
+  "disk": {
+    "/": {
+      "total": "1456701079552",
+      "used": "36945571840"
+    }
+  },
+  "memory": {
+    "total": "238546489344"
+  },
+  "cpu": {
+    "count": 30,
+    "countLogical": 30
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA A10",
+      "memoryTotal": "24146608128",
+      "cudaCores": 9216,
+      "architecture": "Ampere"
+    }
+  ],
+  "cudaVersion": "12.8"
+}

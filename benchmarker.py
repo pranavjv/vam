@@ -281,18 +281,46 @@ class Benchmarker:
                 'normgrad': self.p.get('normgrad', True),
                 'lr_cutoff': self.p.get('lr_cutoff', 19)
             }
+            print(f"Optimizer VADAM with params: {vadam_params}")
             self.optimizer = VADAM(self.model.parameters(), **vadam_params)
-        elif self.p['optimizer'] == "ADAM":
-            # Standard Adam parameters
+
+        elif self.p['optimizer'].upper() == 'ADAM' or self.p['optimizer'].upper() == 'ADAMW': # Changed to ADAMW, ensure params match
             adam_params = {
-                'lr': self.p.get('lr', 0.001),
-                'betas': (self.p.get('beta1', 0.9), self.p.get('beta2', 0.999)),
+                'lr': self.p['lr'],
+                'betas': (self.p.get('beta1', 0.9), self.p.get('beta2', 0.999)), # Use .get for betas
                 'eps': self.p.get('eps', 1e-8),
-                'weight_decay': self.p.get('weight_decay', 0)
+                'weight_decay': self.p.get('weight_decay', 0.01) # AdamW typically needs weight_decay
             }
+            # Filter out None values, if any param is not provided and defaults to None in self.p
+            adam_params = {k: v for k, v in adam_params.items() if v is not None}
+            print(f"Optimizer AdamW with params: {adam_params}")
             self.optimizer = torch.optim.AdamW(self.model.parameters(), **adam_params)
+        
+        elif self.p['optimizer'].upper() == 'SGD':
+            sgd_params = {
+                'lr': self.p['lr'],
+                'momentum': self.p.get('momentum', 0), # Default momentum to 0 if not provided
+                'nesterov': self.p.get('nesterov', False), # Default nesterov to False
+                'weight_decay': self.p.get('weight_decay', 0) # Default weight_decay to 0
+            }
+            sgd_params = {k: v for k, v in sgd_params.items() if v is not None}
+            print(f"Optimizer SGD with params: {sgd_params}")
+            self.optimizer = torch.optim.SGD(self.model.parameters(), **sgd_params)
+
+        elif self.p['optimizer'].upper() == 'RMSPROP':
+            rmsprop_params = {
+                'lr': self.p['lr'],
+                'alpha': self.p.get('alpha', 0.99), # Default alpha
+                'eps': self.p.get('eps', 1e-8), # Default eps
+                'momentum': self.p.get('momentum', 0), # Default momentum
+                'weight_decay': self.p.get('weight_decay', 0) # Default weight_decay
+            }
+            rmsprop_params = {k: v for k, v in rmsprop_params.items() if v is not None}
+            print(f"Optimizer RMSprop with params: {rmsprop_params}")
+            self.optimizer = torch.optim.RMSprop(self.model.parameters(), **rmsprop_params)
+
         else:
-            raise ValueError(f"Unknown optimizer: {self.p['optimizer']}")
+            raise ValueError(f"Unsupported optimizer: {self.p['optimizer']}")
 
         # --- Scheduler Setup (AFTER optimizer setup) ---
         self.scheduler = None

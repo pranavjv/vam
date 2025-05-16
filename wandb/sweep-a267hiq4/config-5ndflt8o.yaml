@@ -1,0 +1,36 @@
+wandb_version: 1
+
+batch_size:
+  value: 1024
+dataset:
+  value: CIFAR10
+dataset_size:
+  value: full
+embed_dim:
+  value: 300
+epochs:
+  value: 100
+hidden_dim:
+  value: 512
+lr_eta_min:
+  value: 1.0e-05
+lr_scheduler_type:
+  value: WarmupCosineAnnealing
+lr_warmup_epochs:
+  value: 5
+lr_warmup_factor:
+  value: 0.1
+max_seq_len:
+  value: 256
+model:
+  value: DeeperCNN
+optimizer_name:
+  value: SGD
+sgd_lr:
+  value: 0.05841468601122936
+sgd_momentum:
+  value: 0.9
+sgd_nesterov:
+  value: true
+sgd_weight_decay:
+  value: 1.0e-05

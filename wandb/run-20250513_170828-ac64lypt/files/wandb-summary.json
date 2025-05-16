@@ -1,0 +1,1 @@
+{"max_hessian_eigenvalue_at_epoch_start":111.1617660522461,"_timestamp":1.7471563771868958e+09,"_runtime":269.111671987,"_step":20,"max_hessian_eigenvalue_post_training":120.29944610595703,"_wandb":{"runtime":269},"epoch":20,"training_loss":1.5177531602132657}
