@@ -193,30 +193,30 @@ def plot_results(results, title, filename):
             f.write("\nHEAD-TO-HEAD COMPARISON\n")
             f.write("-"*30 + "\n")
             adam_result = results['ADAM']
-            vadam_result = results['VADAM']
+            vradam_result = results['VRADAM']
             
-            time_diff = vadam_result['train_time'] - adam_result['train_time']
+            time_diff = vradam_result['train_time'] - adam_result['train_time']
             time_percent = (time_diff / adam_result['train_time']) * 100
             f.write(f"Training Time Difference: {time_diff:.2f}s ({time_percent:.1f}%)\n")
             
-            loss_diff = vadam_result['test_loss'] - adam_result['test_loss']
+            loss_diff = vradam_result['test_loss'] - adam_result['test_loss']
             loss_percent = (loss_diff / adam_result['test_loss']) * 100
             f.write(f"Test Loss Difference: {loss_diff:.6f} ({loss_percent:.1f}%)\n")
             
-            if 'test_acc' in adam_result and 'test_acc' in vadam_result:
-                acc_diff = vadam_result['test_acc'] - adam_result['test_acc']
+            if 'test_acc' in adam_result and 'test_acc' in vradam_result:
+                acc_diff = vradam_result['test_acc'] - adam_result['test_acc']
                 acc_percent = acc_diff * 100  # percentage points
                 f.write(f"Test Accuracy Difference: {acc_diff:.4f} ({acc_percent:.1f} percentage points)\n")
                 
-            if 'test_perplexity' in adam_result and 'test_perplexity' in vadam_result:
-                ppl_diff = vadam_result['test_perplexity'] - adam_result['test_perplexity']
+            if 'test_perplexity' in adam_result and 'test_perplexity' in vradam_result:
+                ppl_diff = vradam_result['test_perplexity'] - adam_result['test_perplexity']
                 ppl_percent = (ppl_diff / adam_result['test_perplexity']) * 100
                 f.write(f"Test Perplexity Difference: {ppl_diff:.2f} ({ppl_percent:.1f}%)\n")
     
     print(f"Detailed summary saved to {summary_file}")
 
 def compare_optimizers(base_params, dataset, model_type):
-    """Run benchmarks comparing ADAM and VADAM optimizers"""
+    """Run benchmarks comparing ADAM and VRADAM optimizers"""
     results = {}
     
     # Update params for this specific comparison
@@ -245,28 +245,28 @@ def compare_optimizers(base_params, dataset, model_type):
     adam_results = benchmark_adam.run()
     results['ADAM'] = adam_results
     
-    # Run benchmark with VADAM optimizer
+    # Run benchmark with VRADAM optimizer
     print("\n" + "="*50)
-    print(f"Running {model_type} on {dataset} with VADAM optimizer")
+    print(f"Running {model_type} on {dataset} with VRADAM optimizer")
     print("="*50 + "\n")
     
-    vadam_params = params.copy()
-    vadam_params['optimizer'] = 'VADAM'
-    # VADAM specific parameters (using defaults if not specified)
-    vadam_params.update({
-        'eta': params.get('vadam_eta', params.get('lr', 0.001)),  # Use eta if provided, otherwise fall back to lr
-        'beta1': params.get('vadam_beta1', 0.9),
-        'beta2': params.get('vadam_beta2', 0.999),
-        'beta3': params.get('vadam_beta3', 1.0),
-        'eps': params.get('vadam_eps', 1e-8),
-        'weight_decay': params.get('vadam_weight_decay', 0),
-        'power': params.get('vadam_power', 2),
-        'normgrad': params.get('vadam_normgrad', True),
-        'lr_cutoff': params.get('vadam_lr_cutoff', 19)
+    vradam_params = params.copy()
+    vradam_params['optimizer'] = 'VRADAM'
+    # VRADAM specific parameters (using defaults if not specified)
+    vradam_params.update({
+        'eta': params.get('vradam_eta', params.get('lr', 0.001)),  # Use eta if provided, otherwise fall back to lr
+        'beta1': params.get('vradam_beta1', 0.9),
+        'beta2': params.get('vradam_beta2', 0.999),
+        'beta3': params.get('vradam_beta3', 1.0),
+        'eps': params.get('vradam_eps', 1e-8),
+        'weight_decay': params.get('vradam_weight_decay', 0),
+        'power': params.get('vradam_power', 2),
+        'normgrad': params.get('vradam_normgrad', True),
+        'lr_cutoff': params.get('vradam_lr_cutoff', 19)
     })
-    benchmark_vadam = Benchmarker(vadam_params)
-    vadam_results = benchmark_vadam.run()
-    results['VADAM'] = vadam_results
+    benchmark_vradam = Benchmarker(vradam_params)
+    vradam_results = benchmark_vradam.run()
+    results['VRADAM'] = vradam_results
     
     # Save results to file
     output_dir = 'benchmark_results'
@@ -302,18 +302,18 @@ def compare_optimizers(base_params, dataset, model_type):
     
     # Compare key metrics
     print(f"ADAM Test Loss: {results['ADAM']['test_loss']:.6f}")
-    print(f"VADAM Test Loss: {results['VADAM']['test_loss']:.6f}")
+    print(f"VRADAM Test Loss: {results['VRADAM']['test_loss']:.6f}")
     
     if results['ADAM'].get('test_acc') is not None:
         print(f"ADAM Test Accuracy: {results['ADAM']['test_acc']:.4f}")
-        print(f"VADAM Test Accuracy: {results['VADAM']['test_acc']:.4f}")
+        print(f"VRADAM Test Accuracy: {results['VRADAM']['test_acc']:.4f}")
     
     if results['ADAM'].get('test_perplexity') is not None:
         print(f"ADAM Test Perplexity: {results['ADAM']['test_perplexity']:.2f}")
-        print(f"VADAM Test Perplexity: {results['VADAM']['test_perplexity']:.2f}")
+        print(f"VRADAM Test Perplexity: {results['VRADAM']['test_perplexity']:.2f}")
         
     print(f"ADAM Training Time: {results['ADAM']['train_time']:.2f}s")
-    print(f"VADAM Training Time: {results['VADAM']['train_time']:.2f}s")
+    print(f"VRADAM Training Time: {results['VRADAM']['train_time']:.2f}s")
     
     return results
 
@@ -337,7 +337,7 @@ def run_all_benchmarks(device=None):
     os.makedirs('benchmark_results', exist_ok=True)
     
     print("\nStarting benchmarks...\n")
-    print("This will compare ADAM and VADAM optimizers across multiple models and datasets")
+    print("This will compare ADAM and VRADAM optimizers across multiple models and datasets")
     print("Results will be saved to the benchmark_results directory\n")
     
     total_start_time = time.time()
@@ -404,38 +404,38 @@ def run_all_benchmarks(device=None):
             
             # Extract key metrics
             adam = results['ADAM']
-            vadam = results['VADAM']
+            vradam = results['VRADAM']
             
             # Determine which metrics to report based on task type
-            f.write(f"Test Loss: ADAM = {adam['test_loss']:.6f}, VADAM = {vadam['test_loss']:.6f}\n")
+            f.write(f"Test Loss: ADAM = {adam['test_loss']:.6f}, VRADAM = {vradam['test_loss']:.6f}\n")
             
             if 'test_acc' in adam and adam['test_acc'] is not None:
-                f.write(f"Test Accuracy: ADAM = {adam['test_acc']:.4f}, VADAM = {vadam['test_acc']:.4f}\n")
+                f.write(f"Test Accuracy: ADAM = {adam['test_acc']:.4f}, VRADAM = {vradam['test_acc']:.4f}\n")
                 
             if 'test_perplexity' in adam and adam['test_perplexity'] is not None:
-                f.write(f"Test Perplexity: ADAM = {adam['test_perplexity']:.2f}, VADAM = {vadam['test_perplexity']:.2f}\n")
+                f.write(f"Test Perplexity: ADAM = {adam['test_perplexity']:.2f}, VRADAM = {vradam['test_perplexity']:.2f}\n")
 
             if 'final_fid_score' in adam and adam['final_fid_score'] is not None:
-                f.write(f"FID Score: ADAM = {adam['final_fid_score']:.4f}, VADAM = {vadam['final_fid_score']:.4f}\n")
+                f.write(f"FID Score: ADAM = {adam['final_fid_score']:.4f}, VRADAM = {vradam['final_fid_score']:.4f}\n")
                 
-            f.write(f"Training Time: ADAM = {adam['train_time']:.2f}s, VADAM = {vadam['train_time']:.2f}s\n")
+            f.write(f"Training Time: ADAM = {adam['train_time']:.2f}s, VRADAM = {vradam['train_time']:.2f}s\n")
             
             # Calculate percentage improvements
-            if adam['test_loss'] is not None and vadam['test_loss'] is not None:
-                loss_diff = (vadam['test_loss'] - adam['test_loss']) / max(adam['test_loss'], 1e-8) * 100
-                f.write(f"Loss Improvement: {-loss_diff:.2f}% ({'better' if loss_diff < 0 else 'worse'} for VADAM)\n")
+            if adam['test_loss'] is not None and vradam['test_loss'] is not None:
+                loss_diff = (vradam['test_loss'] - adam['test_loss']) / max(adam['test_loss'], 1e-8) * 100
+                f.write(f"Loss Improvement: {-loss_diff:.2f}% ({'better' if loss_diff < 0 else 'worse'} for VRADAM)\n")
             
-            if 'test_acc' in adam and adam['test_acc'] is not None and 'test_acc' in vadam and vadam['test_acc'] is not None:
-                acc_diff = vadam['test_acc'] - adam['test_acc']
-                f.write(f"Accuracy Improvement: {acc_diff*100:.2f} percentage points ({'better' if acc_diff > 0 else 'worse'} for VADAM)\n")
+            if 'test_acc' in adam and adam['test_acc'] is not None and 'test_acc' in vradam and vradam['test_acc'] is not None:
+                acc_diff = vradam['test_acc'] - adam['test_acc']
+                f.write(f"Accuracy Improvement: {acc_diff*100:.2f} percentage points ({'better' if acc_diff > 0 else 'worse'} for VRADAM)\n")
                 
-            if 'test_perplexity' in adam and adam['test_perplexity'] is not None and 'test_perplexity' in vadam and vadam['test_perplexity'] is not None:
-                ppl_diff = (vadam['test_perplexity'] - adam['test_perplexity']) / max(adam['test_perplexity'], 1e-8) * 100
-                f.write(f"Perplexity Improvement: {-ppl_diff:.2f}% ({'better' if ppl_diff < 0 else 'worse'} for VADAM)\n")
+            if 'test_perplexity' in adam and adam['test_perplexity'] is not None and 'test_perplexity' in vradam and vradam['test_perplexity'] is not None:
+                ppl_diff = (vradam['test_perplexity'] - adam['test_perplexity']) / max(adam['test_perplexity'], 1e-8) * 100
+                f.write(f"Perplexity Improvement: {-ppl_diff:.2f}% ({'better' if ppl_diff < 0 else 'worse'} for VRADAM)\n")
                 
-            if adam['train_time'] is not None and vadam['train_time'] is not None:
-                time_diff = (vadam['train_time'] - adam['train_time']) / max(adam['train_time'], 1e-8) * 100
-                f.write(f"Time Efficiency: {-time_diff:.2f}% ({'faster' if time_diff < 0 else 'slower'} for VADAM)\n")
+            if adam['train_time'] is not None and vradam['train_time'] is not None:
+                time_diff = (vradam['train_time'] - adam['train_time']) / max(adam['train_time'], 1e-8) * 100
+                f.write(f"Time Efficiency: {-time_diff:.2f}% ({'faster' if time_diff < 0 else 'slower'} for VRADAM)\n")
             
             f.write("\n" + "="*50 + "\n\n")
             
@@ -472,7 +472,7 @@ def run_specific_benchmark(model_name):
         raise ValueError(f"Unknown benchmark: {model_name}")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run benchmarks comparing ADAM and VADAM")
+    parser = argparse.ArgumentParser(description="Run benchmarks comparing ADAM and VRADAM")
     parser.add_argument("--model", type=str, choices=["CNN", "Transformer", "RL", "Diffusion", "all"],
                       help="Which model to benchmark (default: all)", default="all")
     

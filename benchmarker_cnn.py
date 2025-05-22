@@ -15,7 +15,7 @@ from torch.optim import lr_scheduler
 # Import our custom text dataset implementations
 import text_datasets
 
-from VADAM import VADAM
+from VRADAM import VRADAM
 import architectures
 
 # Import optimizers and schedulers
@@ -29,7 +29,7 @@ class Benchmarker:
             'device': 'mps', # 'mps' or 'cpu'
             'dataset': 'CIFAR10', # 'CIFAR10', 'WikiText2', 'IMDB'
             'dataset_size': 'small', # 'small' or 'full'
-            'optimizer': 'ADAM', # 'ADAM' or 'VADAM'
+            'optimizer': 'ADAM', # 'ADAM' or 'VRADAM'
             'batch_size': 128,
             'max_seq_len': 256,  # For NLP tasks
             'embed_dim': 300,    # For MLP and Transformer models
@@ -265,9 +265,9 @@ class Benchmarker:
             raise ValueError(f"Unknown model: {self.p['model']}")
 
         # --- Optimizer Setup (AFTER model instantiation) ---
-        if self.p['optimizer'] == "VADAM":
-            # VADAM specific parameters
-            vadam_params = {
+        if self.p['optimizer'] == "VRADAM":
+            # VRADAM specific parameters
+            vradam_params = {
                 'beta1': self.p.get('beta1', 0.9),
                 'beta2': self.p.get('beta2', 0.999),
                 'beta3': self.p.get('beta3', 1.0),
@@ -278,7 +278,7 @@ class Benchmarker:
                 'normgrad': self.p.get('normgrad', True),
                 'lr_cutoff': self.p.get('lr_cutoff', 19)
             }
-            self.optimizer = VADAM(self.model.parameters(), **vadam_params)
+            self.optimizer = VRADAM(self.model.parameters(), **vradam_params)
         elif self.p['optimizer'] == "ADAM":
             # Standard Adam parameters
             adam_params = {

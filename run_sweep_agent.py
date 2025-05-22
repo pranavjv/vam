@@ -11,9 +11,6 @@ from cnn_image_classification.sweep_cnn import create_sweep_config as cnn_create
 from transformer_language_modeling.sweep_transformer import train_model as transformer_train_model
 from transformer_language_modeling.sweep_transformer import create_sweep_config as transformer_create_sweep_config
 
-from rl_halfcheetah.sweep_rl import train_model as rl_train_model
-from rl_halfcheetah.sweep_rl import create_sweep_config as rl_create_sweep_config
-
 from diffusion_mnist.sweep_diffusion import train_model as diffusion_train_model
 from diffusion_mnist.sweep_diffusion import create_sweep_config as diffusion_create_sweep_config
 
@@ -25,7 +22,7 @@ def run_sweep_agent(sweep_id=None, model_type=None, dataset=None, optimizer=None
         sweep_id: Existing sweep ID (optional)
         model_type: Model type if creating a new sweep ('CNN', 'Transformer', 'RL', 'Diffusion')
         dataset: Dataset if creating a new sweep (for information only)
-        optimizer: Optimizer to use ('adam', 'vadam', or 'both')
+        optimizer: Optimizer to use ('adam', 'vradam', or 'both')
         count: Number of runs to perform
     """
     # Ensure wandb is logged in
@@ -38,7 +35,7 @@ def run_sweep_agent(sweep_id=None, model_type=None, dataset=None, optimizer=None
         
         # Normalize optimizer name for consistency
         if optimizer:
-            optimizer = optimizer.upper() if optimizer.upper() in ['ADAM', 'VADAM'] else optimizer.lower()
+            optimizer = optimizer.upper() if optimizer.upper() in ['ADAM', 'VRADAM'] else optimizer.lower()
         else:
             optimizer = 'both'
             
@@ -53,11 +50,6 @@ def run_sweep_agent(sweep_id=None, model_type=None, dataset=None, optimizer=None
             model_str = 'Transformer'
             dataset_str = 'WikiText2'
             sweep_config = transformer_create_sweep_config(optimizer.upper())
-        elif model_type.upper() == 'RL':
-            train_model = rl_train_model
-            model_str = 'RL'
-            dataset_str = 'HalfCheetah'
-            sweep_config = rl_create_sweep_config(optimizer.upper())
         elif model_type.upper() == 'DIFFUSION':
             train_model = diffusion_train_model
             model_str = 'Diffusion'
@@ -94,8 +86,6 @@ def run_sweep_agent(sweep_id=None, model_type=None, dataset=None, optimizer=None
             train_model = cnn_train_model
         elif model_type.upper() == 'TRANSFORMER':
             train_model = transformer_train_model
-        elif model_type.upper() == 'RL':
-            train_model = rl_train_model
         elif model_type.upper() == 'DIFFUSION':
             train_model = diffusion_train_model
         else:
@@ -112,7 +102,7 @@ if __name__ == "__main__":
     parser.add_argument("--sweep_id", type=str, help="Existing sweep ID (optional)")
     parser.add_argument("--model", type=str, choices=["CNN", "Transformer", "RL", "Diffusion"], 
                       help="Model type if creating a new sweep")
-    parser.add_argument("--optimizer", type=str, choices=["adam", "vadam", "both"], default="both",
+    parser.add_argument("--optimizer", type=str, choices=["adam", "vradam", "both"], default="both",
                       help="Optimizer to use (default: both)")
     parser.add_argument("--count", type=int, default=10, help="Number of runs to perform")
     

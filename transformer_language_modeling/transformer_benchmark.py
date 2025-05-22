@@ -116,7 +116,7 @@ def plot_transformer_results(results, title, filename):
     print(f"Plot saved to {filename}")
 
 def compare_optimizers(base_params):
-    """Run transformer benchmarks comparing ADAM and VADAM optimizers"""
+    """Run transformer benchmarks comparing ADAM and VRADAM optimizers"""
     results = {}
     
     # Run benchmark with Adam optimizer
@@ -137,27 +137,27 @@ def compare_optimizers(base_params):
     adam_results = benchmark_adam.run()
     results['ADAM'] = adam_results
     
-    # Run benchmark with VADAM optimizer
+    # Run benchmark with VRADAM optimizer
     print("\n" + "="*50)
-    print(f"Running Transformer on WikiText2 with VADAM optimizer")
+    print(f"Running Transformer on WikiText2 with VRADAM optimizer")
     print("="*50 + "\n")
     
-    vadam_params = base_params.copy()
-    vadam_params['optimizer'] = 'VADAM'
-    vadam_params.update({
-        'eta': base_params.get('vadam_eta', base_params.get('lr', 0.001)),
-        'beta1': base_params.get('vadam_beta1', 0.9),
-        'beta2': base_params.get('vadam_beta2', 0.999),
-        'beta3': base_params.get('vadam_beta3', 1.0),
-        'eps': base_params.get('vadam_eps', 1e-8),
-        'weight_decay': base_params.get('vadam_weight_decay', 0),
-        'power': base_params.get('vadam_power', 2),
-        'normgrad': base_params.get('vadam_normgrad', False),
-        'lr_cutoff': base_params.get('vadam_lr_cutoff', 19)
+    vradam_params = base_params.copy()
+    vradam_params['optimizer'] = 'VRADAM'
+    vradam_params.update({
+        'eta': base_params.get('vradam_eta', base_params.get('lr', 0.001)),
+        'beta1': base_params.get('vradam_beta1', 0.9),
+        'beta2': base_params.get('vradam_beta2', 0.999),
+        'beta3': base_params.get('vradam_beta3', 1.0),
+        'eps': base_params.get('vradam_eps', 1e-8),
+        'weight_decay': base_params.get('vradam_weight_decay', 0),
+        'power': base_params.get('vradam_power', 2),
+        'normgrad': base_params.get('vradam_normgrad', False),
+        'lr_cutoff': base_params.get('vradam_lr_cutoff', 19)
     })
-    benchmark_vadam = Benchmarker(vadam_params)
-    vadam_results = benchmark_vadam.run()
-    results['VADAM'] = vadam_results
+    benchmark_vradam = Benchmarker(vradam_params)
+    vradam_results = benchmark_vradam.run()
+    results['VRADAM'] = vradam_results
     
     # Save results to file
     output_dir = '../benchmark_results'
@@ -193,13 +193,13 @@ def compare_optimizers(base_params):
     
     # Compare key metrics
     print(f"ADAM Test Loss: {results['ADAM']['test_loss']:.6f}")
-    print(f"VADAM Test Loss: {results['VADAM']['test_loss']:.6f}")
+    print(f"VRADAM Test Loss: {results['VRADAM']['test_loss']:.6f}")
     
     print(f"ADAM Test Perplexity: {results['ADAM']['test_perplexity']:.2f}")
-    print(f"VADAM Test Perplexity: {results['VADAM']['test_perplexity']:.2f}")
+    print(f"VRADAM Test Perplexity: {results['VRADAM']['test_perplexity']:.2f}")
     
     print(f"ADAM Training Time: {results['ADAM']['train_time']:.2f}s")
-    print(f"VADAM Training Time: {results['VADAM']['train_time']:.2f}s")
+    print(f"VRADAM Training Time: {results['VRADAM']['train_time']:.2f}s")
     
     return results
 
@@ -226,16 +226,16 @@ def run_transformer_benchmark():
         'adam_eps': 1e-8,
         'adam_weight_decay': 0,
         
-        # VADAM specific parameters
-        'vadam_eta': 0.001,
-        'vadam_beta1': 0.9,
-        'vadam_beta2': 0.999,
-        'vadam_beta3': 0.8,
-        'vadam_eps': 1e-8,
-        'vadam_weight_decay': 0,
-        'vadam_power': 2,
-        'vadam_normgrad': False,
-        'vadam_lr_cutoff': 15
+        # VRADAM specific parameters
+        'vradam_eta': 0.001,
+        'vradam_beta1': 0.9,
+        'vradam_beta2': 0.999,
+        'vradam_beta3': 0.8,
+        'vradam_eps': 1e-8,
+        'vradam_weight_decay': 0,
+        'vradam_power': 2,
+        'vradam_normgrad': False,
+        'vradam_lr_cutoff': 15
     }
     
     return compare_optimizers(base_params)

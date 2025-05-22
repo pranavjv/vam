@@ -14,10 +14,9 @@ import math
 # Import our custom text dataset implementations
 import text_datasets
 
-from VADAM import VADAM
+from VRADAM import VRADAM
 import architectures
-import rl_architectures
-import rl_environments
+
 # Import PPO architecture
 from ppo_architectures import PPOAgent
 
@@ -29,7 +28,7 @@ class Benchmarker:
             'device': 'mps', # 'mps' or 'cpu'
             'dataset': 'CIFAR10', # 'CIFAR10', 'WikiText2', 'IMDB', 'HalfCheetah'
             'dataset_size': 'small', # 'small' or 'full'
-            'optimizer': 'ADAM', # 'ADAM' or 'VADAM'
+            'optimizer': 'ADAM', # 'ADAM' or 'VRADAM'
             'batch_size': 128,
             'max_seq_len': 256,  # For NLP tasks
             'embed_dim': 300,    # For MLP and Transformer models
@@ -308,9 +307,9 @@ class Benchmarker:
             raise ValueError(f"Unknown model: {self.p['model']}")
 
         # Setup optimizer
-        if self.p['optimizer'] == "VADAM":
-            # VADAM specific parameters
-            vadam_params = {
+        if self.p['optimizer'] == "VRADAM":
+            # VRADAM specific parameters
+            vradam_params = {
                 'beta1': self.p.get('beta1', 0.9),
                 'beta2': self.p.get('beta2', 0.999),
                 'beta3': self.p.get('beta3', 1.0),
@@ -323,16 +322,16 @@ class Benchmarker:
             }
             
             if self.p['model'] == 'RLPolicy':
-                # Use VADAM for both policy and value networks
-                self.policy_optimizer = VADAM(self.policy_net.parameters(), **vadam_params)
-                self.value_optimizer = VADAM(self.value_net.parameters(), **vadam_params)
+                # Use VRADAM for both policy and value networks
+                self.policy_optimizer = VRADAM(self.policy_net.parameters(), **vradam_params)
+                self.value_optimizer = VRADAM(self.value_net.parameters(), **vradam_params)
                 # Reference to policy optimizer as the main optimizer
                 self.optimizer = self.policy_optimizer
             elif self.p['model'] == 'PPOPolicy':
-                # Use VADAM for the PPO agent
-                self.optimizer = VADAM(self.ppo_agent.parameters(), **vadam_params)
+                # Use VRADAM for the PPO agent
+                self.optimizer = VRADAM(self.ppo_agent.parameters(), **vradam_params)
             else:
-                self.optimizer = VADAM(self.model.parameters(), **vadam_params)
+                self.optimizer = VRADAM(self.model.parameters(), **vradam_params)
                 
         elif self.p['optimizer'] == "ADAM":
             # Standard Adam parameters
@@ -374,7 +373,7 @@ class Benchmarker:
                             'weight_decay': self.p.get('weight_decay', 0)
                         }
                         self.ppo_agent.setup_optimizers('ADAM', optimizer_params)
-                    elif self.p['optimizer'] == 'VADAM':
+                    elif self.p['optimizer'] == 'VRADAM':
                         optimizer_params = {
                             'lr': self.p.get('lr', 0.001),  # Not used directly but passed for consistency
                             'eta': self.p.get('eta', self.p.get('lr', 0.001)),
@@ -387,7 +386,7 @@ class Benchmarker:
                             'normgrad': self.p.get('normgrad', True),
                             'lr_cutoff': self.p.get('lr_cutoff', 19)
                         }
-                        # VADAM optimizers will be created in the benchmarker's train_ppo method
+                        # VRADAM optimizers will be created in the benchmarker's train_ppo method
                 
                 # Sample batch of trajectories
                 batch = self.rl_env.sample_batch(self.ppo_agent.pi, n_steps=2048)
@@ -411,10 +410,10 @@ class Benchmarker:
                 with torch.no_grad():
                     values = self.ppo_agent.critic(states).cpu().numpy()
                     
-                    # For VADAM, we need to handle optimizer creation here
-                    if self.p['optimizer'] == 'VADAM' and (not hasattr(self.ppo_agent, 'actor_optim') or self.ppo_agent.actor_optim is None):
-                        # Create VADAM optimizers for the PPO agent's actor and critic
-                        vadam_params = {
+                    # For VRADAM, we need to handle optimizer creation here
+                    if self.p['optimizer'] == 'VRADAM' and (not hasattr(self.ppo_agent, 'actor_optim') or self.ppo_agent.actor_optim is None):
+                        # Create VRADAM optimizers for the PPO agent's actor and critic
+                        vradam_params = {
                             'beta1': self.p.get('beta1', 0.9),
                             'beta2': self.p.get('beta2', 0.999),
                             'beta3': self.p.get('beta3', 1.0),
@@ -425,8 +424,8 @@ class Benchmarker:
                             'normgrad': self.p.get('normgrad', True),
                             'lr_cutoff': self.p.get('lr_cutoff', 19)
                         }
-                        self.ppo_agent.actor_optim = VADAM(self.ppo_agent.pi.parameters(), **vadam_params)
-                        self.ppo_agent.critic_optim = VADAM(self.ppo_agent.critic.parameters(), **vadam_params)
+                        self.ppo_agent.actor_optim = VRADAM(self.ppo_agent.pi.parameters(), **vradam_params)
+                        self.ppo_agent.critic_optim = VRADAM(self.ppo_agent.critic.parameters(), **vradam_params)
                 
                 # Forward pass to get action logprobs
                 _, action_logprob, _ = self.ppo_agent.forward(states)

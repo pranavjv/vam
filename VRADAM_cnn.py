@@ -10,7 +10,7 @@ from torch.nn.utils import clip_grad_norm_
 import time
 
 
-class VADAM(Optimizer):
+class VRADAM(Optimizer):
     """
     Velocity-Adaptive Momentum (VAM) optimizer with Adam-like behavior and weight decay according to ADAMW
     """

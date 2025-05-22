@@ -17,7 +17,7 @@ from torchvision.utils import make_grid
 # Add parent directory to path to import from root
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from diffusion_model import EnhancedUNet, SimpleUNet, DiffusionModel, SelfAttention
-from VADAM import VADAM
+from VRADAM import VRADAM
 
 class InceptionStatistics:
     def __init__(self, device='cuda'):
@@ -121,7 +121,7 @@ class DiffusionBenchmark:
             p = {
                 'device': 'cuda',  # 'cuda', 'mps', or 'cpu'
                 'dataset_size': 'small',  # 'small' or 'full'
-                'optimizer': 'ADAM',  # 'ADAM' or 'VADAM'
+                'optimizer': 'ADAM',  # 'ADAM' or 'VRADAM'
                 'batch_size': 64,
                 'lr': 0.0002,  # Learning rate
                 'epochs': 10,  # Number of training epochs
@@ -283,9 +283,9 @@ class DiffusionBenchmark:
         )
         
         # Setup optimizer
-        if self.p['optimizer'] == "VADAM":
-            # VADAM specific parameters
-            vadam_params = {
+        if self.p['optimizer'] == "VRADAM":
+            # VRADAM specific parameters
+            vradam_params = {
                 'beta1': self.p.get('beta1', 0.9),
                 'beta2': self.p.get('beta2', 0.999),
                 'beta3': self.p.get('beta3', 1.0),
@@ -296,8 +296,8 @@ class DiffusionBenchmark:
                 'normgrad': self.p.get('normgrad', False),
                 'lr_cutoff': self.p.get('lr_cutoff', 19)
             }
-            self.optimizer = VADAM(self.unet.parameters(), **vadam_params)
-            print(f"Using VADAM optimizer with eta={vadam_params['eta']}, beta3={vadam_params['beta3']}")
+            self.optimizer = VRADAM(self.unet.parameters(), **vradam_params)
+            print(f"Using VRADAM optimizer with eta={vradam_params['eta']}, beta3={vradam_params['beta3']}")
         elif self.p['optimizer'] == "ADAM":
             # Standard Adam parameters
             adam_params = {
@@ -524,7 +524,7 @@ class DiffusionBenchmark:
         return self.results
 
 def compare_optimizers(base_params):
-    """Run diffusion model benchmarks comparing ADAM and VADAM optimizers"""
+    """Run diffusion model benchmarks comparing ADAM and VRADAM optimizers"""
     results = {}
     
     # Run benchmark with Adam optimizer
@@ -545,27 +545,27 @@ def compare_optimizers(base_params):
     adam_results = benchmark_adam.run()
     results['ADAM'] = adam_results
     
-    # Run benchmark with VADAM optimizer
+    # Run benchmark with VRADAM optimizer
     print("\n" + "="*50)
-    print(f"Running diffusion model on MNIST with VADAM optimizer")
+    print(f"Running diffusion model on MNIST with VRADAM optimizer")
     print("="*50 + "\n")
     
-    vadam_params = base_params.copy()
-    vadam_params['optimizer'] = 'VADAM'
-    vadam_params.update({
-        'eta': base_params.get('vadam_eta', base_params.get('lr', 0.0002)),
-        'beta1': base_params.get('vadam_beta1', 0.9),
-        'beta2': base_params.get('vadam_beta2', 0.999),
-        'beta3': base_params.get('vadam_beta3', 1.0),
-        'eps': base_params.get('vadam_eps', 1e-8),
-        'weight_decay': base_params.get('vadam_weight_decay', 0),
-        'power': base_params.get('vadam_power', 2),
-        'normgrad': base_params.get('vadam_normgrad', True),
-        'lr_cutoff': base_params.get('vadam_lr_cutoff', 19)
+    vradam_params = base_params.copy()
+    vradam_params['optimizer'] = 'VRADAM'
+    vradam_params.update({
+        'eta': base_params.get('vradam_eta', base_params.get('lr', 0.0002)),
+        'beta1': base_params.get('vradam_beta1', 0.9),
+        'beta2': base_params.get('vradam_beta2', 0.999),
+        'beta3': base_params.get('vradam_beta3', 1.0),
+        'eps': base_params.get('vradam_eps', 1e-8),
+        'weight_decay': base_params.get('vradam_weight_decay', 0),
+        'power': base_params.get('vradam_power', 2),
+        'normgrad': base_params.get('vradam_normgrad', True),
+        'lr_cutoff': base_params.get('vradam_lr_cutoff', 19)
     })
-    benchmark_vadam = DiffusionBenchmark(vadam_params)
-    vadam_results = benchmark_vadam.run()
-    results['VADAM'] = vadam_results
+    benchmark_vradam = DiffusionBenchmark(vradam_params)
+    vradam_results = benchmark_vradam.run()
+    results['VRADAM'] = vradam_results
     
     # Save results to file
     output_dir = '../benchmark_results'
@@ -597,15 +597,15 @@ def compare_optimizers(base_params):
     
     # Compare key metrics
     print(f"ADAM Test Loss: {results['ADAM']['test_loss']:.6f}")
-    print(f"VADAM Test Loss: {results['VADAM']['test_loss']:.6f}")
+    print(f"VRADAM Test Loss: {results['VRADAM']['test_loss']:.6f}")
     
     # Compare FID scores if available
-    if results['ADAM'].get('final_fid_score') is not None and results['VADAM'].get('final_fid_score') is not None:
+    if results['ADAM'].get('final_fid_score') is not None and results['VRADAM'].get('final_fid_score') is not None:
         print(f"ADAM FID Score: {results['ADAM']['final_fid_score']:.4f}")
-        print(f"VADAM FID Score: {results['VADAM']['final_fid_score']:.4f}")
+        print(f"VRADAM FID Score: {results['VRADAM']['final_fid_score']:.4f}")
     
     print(f"ADAM Training Time: {results['ADAM']['train_time']:.2f}s")
-    print(f"VADAM Training Time: {results['VADAM']['train_time']:.2f}s")
+    print(f"VRADAM Training Time: {results['VRADAM']['train_time']:.2f}s")
     
     return results, result_file
 
@@ -637,16 +637,16 @@ def run_diffusion_benchmark(model_type='enhanced', use_attention=True, epochs=10
         'adam_eps': 1e-8,
         'adam_weight_decay': 0,
         
-        # VADAM specific parameters
-        'vadam_eta': 0.0002,
-        'vadam_beta1': 0.9,
-        'vadam_beta2': 0.999,
-        'vadam_beta3': 1.0,
-        'vadam_eps': 1e-8,
-        'vadam_weight_decay': 0,
-        'vadam_power': 2,
-        'vadam_normgrad': True,
-        'vadam_lr_cutoff': 19
+        # VRADAM specific parameters
+        'vradam_eta': 0.0002,
+        'vradam_beta1': 0.9,
+        'vradam_beta2': 0.999,
+        'vradam_beta3': 1.0,
+        'vradam_eps': 1e-8,
+        'vradam_weight_decay': 0,
+        'vradam_power': 2,
+        'vradam_normgrad': True,
+        'vradam_lr_cutoff': 19
     }
     
     return compare_optimizers(base_params)
@@ -675,7 +675,7 @@ def run_single_benchmark(optimizer='ADAM', model_type='enhanced', use_attention=
     }
     
     # Add optimizer-specific parameters
-    if optimizer == 'VADAM':
+    if optimizer == 'VRADAM':
         params.update({
             'eta': 0.0002,
             'beta1': 0.9,
@@ -725,7 +725,7 @@ def run_single_benchmark(optimizer='ADAM', model_type='enhanced', use_attention=
 if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Run diffusion model benchmark on MNIST')
-    parser.add_argument('--optimizer', type=str, choices=['ADAM', 'VADAM', 'both'], default='both',
+    parser.add_argument('--optimizer', type=str, choices=['ADAM', 'VRADAM', 'both'], default='both',
                         help='Optimizer to use (default: both)')
     parser.add_argument('--model_type', type=str, choices=['simple', 'enhanced'], default='enhanced',
                         help='Model type to use (default: enhanced)')

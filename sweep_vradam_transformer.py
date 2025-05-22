@@ -21,7 +21,7 @@ def train_model(config=None):
             'dataset': 'WikiText2',  # Language modeling dataset
             'dataset_size': config.dataset_size,
             'device': 'mps' if torch.backends.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu',
-            'optimizer': config.optimizer_name,  # 'VADAM' or 'ADAM'
+            'optimizer': config.optimizer_name,  # 'VRADAM' or 'ADAM'
             'batch_size': config.batch_size,
             'max_seq_len': config.max_seq_len,
             'embed_dim': config.embed_dim,
@@ -39,8 +39,8 @@ def train_model(config=None):
         }
 
         # Add optimizer specific parameters
-        if config.optimizer_name == 'VADAM':
-            params['eta'] = config.eta  # VADAM's learning rate
+        if config.optimizer_name == 'VRADAM':
+            params['eta'] = config.eta  # VRADAM's learning rate
             params['beta1'] = config.beta1
             params['beta2'] = config.beta2
             params['beta3'] = config.beta3
@@ -99,8 +99,8 @@ def train_model(config=None):
         
         return results
 
-def create_vadam_sweep_config():
-    """Create sweep configuration for VADAM optimizer for transformer language modeling."""
+def create_vradam_sweep_config():
+    """Create sweep configuration for VRADAM optimizer for transformer language modeling."""
     sweep_config = {
         'method': 'bayes',
         'metric': {
@@ -109,7 +109,7 @@ def create_vadam_sweep_config():
         },
         'parameters': {
             # Optimizer Type
-            'optimizer_name': {'value': 'VADAM'},
+            'optimizer_name': {'value': 'VRADAM'},
             
             # Fixed parameters
             'dataset_size': {'value': 'full'},  # Use small dataset for faster iterations
@@ -130,8 +130,8 @@ def create_vadam_sweep_config():
             'embed_dim': {'value': 128},
             'hidden_dim': {'value': 256},
             
-            # VADAM parameters to optimize
-            'eta': {'distribution': 'log_uniform_values', 'min': 1e-5, 'max': 0.1},  # Base LR for VADAM
+            # VRADAM parameters to optimize
+            'eta': {'distribution': 'log_uniform_values', 'min': 1e-5, 'max': 0.1},  # Base LR for VRADAM
             'beta1': {'value': 0.9},
             'beta2': {'value': 0.999},
             'beta3': {'distribution': 'uniform', 'min': 0.1, 'max': 5.0},

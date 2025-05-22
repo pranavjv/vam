@@ -5,7 +5,7 @@ import os
 import argparse
 from tqdm import tqdm
 import wandb
-from VADAM import VADAM
+from VRADAM import VRADAM
 from benchmarker import Benchmarker
 from SimpleCNN import SimpleCNN
 import architectures
@@ -13,7 +13,7 @@ import architectures
 class EdgeOfStabilityAnalyzer:
     """
     
-    This class implements experiments to test whether VADAM can surpass
+    This class implements experiments to test whether VRADAM can surpass
     this bound and remain stable at higher eigenvalues of the preconditioned
     Hessian.
     """
@@ -63,7 +63,7 @@ class EdgeOfStabilityAnalyzer:
         # Initialize W&B if requested
         if use_wandb:
             wandb.init(
-                project="vadam-edge-of-stability",
+                project="vradam-edge-of-stability",
                 config={
                     "model": model_type,
                     "dataset": dataset,
@@ -103,7 +103,7 @@ class EdgeOfStabilityAnalyzer:
         
         Args:
             model: The model
-            optimizer: The optimizer (Adam or VADAM)
+            optimizer: The optimizer (Adam or VRADAM)
             use_preconditioned: Whether to compute the eigenvalue of the preconditioned Hessian
             
         Returns:
@@ -134,7 +134,7 @@ class EdgeOfStabilityAnalyzer:
         grads = torch.cat(grads)
         
         # For preconditioned Hessian, we need to apply the preconditioner
-        if use_preconditioned and isinstance(optimizer, (torch.optim.Adam, VADAM)):
+        if use_preconditioned and isinstance(optimizer, (torch.optim.Adam, VRADAM)):
             # Get preconditioner from optimizer state
             preconditioned_grads = []
             
@@ -155,14 +155,14 @@ class EdgeOfStabilityAnalyzer:
                                 preconditioned_grad = p.grad.data / denom
                                 preconditioned_grads.append(preconditioned_grad.reshape(-1))
                         
-                        elif isinstance(optimizer, VADAM):
-                            # VADAM preconditioner
+                        elif isinstance(optimizer, VRADAM):
+                            # VRADAM preconditioner
                             if 'sec_momentum_buffer' in state:
                                 beta2 = group['beta2']
                                 buf_sec_mom = state['sec_momentum_buffer']
                                 t = state.get('step', 0)
                                 
-                                # Apply preconditioner (similar to VADAM implementation)
+                                # Apply preconditioner (similar to VRADAM implementation)
                                 denom = buf_sec_mom.div(1 - beta2**t).sqrt().add_(group['eps'])
                                 preconditioned_grad = p.grad.data / denom
                                 preconditioned_grads.append(preconditioned_grad.reshape(-1))
@@ -226,7 +226,7 @@ class EdgeOfStabilityAnalyzer:
                                          num_steps=100,
                                          plot_results=True,
                                          output_dir='plots',
-                                         **vadam_params):
+                                         **vradam_params):
         """
         Run edge of stability experiment with different learning rates
         
@@ -234,18 +234,18 @@ class EdgeOfStabilityAnalyzer:
             eta_values: List of learning rates to test
             beta1: beta1 parameter for optimizers
             beta2: beta2 parameter for optimizers
-            beta3: beta3 parameter for VADAM
+            beta3: beta3 parameter for VRADAM
             num_steps: Number of steps to run for each configuration
             plot_results: Whether to plot results
             output_dir: Directory to save plots to
-            **vadam_params: Additional parameters for VADAM
+            **vradam_params: Additional parameters for VRADAM
             
         Returns:
             Dictionary of results
         """
         results = {
             'adam': {eta: [] for eta in eta_values},
-            'vadam': {eta: [] for eta in eta_values}
+            'vradam': {eta: [] for eta in eta_values}
         }
         
         # Initialize data and model
@@ -296,46 +296,46 @@ class EdgeOfStabilityAnalyzer:
             
             results['adam'][eta] = max_eigenvalues_adam
             
-            # Run experiment with VADAM
-            print("Running VADAM experiment...")
-            model_vadam = SimpleCNN().to(self.device)
-            optimizer_vadam = VADAM(
-                model_vadam.parameters(),
+            # Run experiment with VRADAM
+            print("Running VRADAM experiment...")
+            model_vradam = SimpleCNN().to(self.device)
+            optimizer_vradam = VRADAM(
+                model_vradam.parameters(),
                 eta=eta,
                 beta1=beta1,
                 beta2=beta2,
                 beta3=beta3,
-                **vadam_params
+                **vradam_params
             )
             
             # Track max eigenvalues
-            max_eigenvalues_vadam = []
+            max_eigenvalues_vradam = []
             
             for step in tqdm(range(num_steps)):
                 # Training step
                 for batch_idx, (data, target) in enumerate(self.train_loader):
                     data, target = data.to(self.device), target.to(self.device)
                     
-                    optimizer_vadam.zero_grad()
-                    output = model_vadam(data)
+                    optimizer_vradam.zero_grad()
+                    output = model_vradam(data)
                     loss = self.criterion(output, target)
                     loss.backward()
-                    optimizer_vadam.step()
+                    optimizer_vradam.step()
                     break  # Only use first batch
                 
                 # Compute max eigenvalue
                 if step % 5 == 0 or step == num_steps - 1:  # Compute every 5 steps to save time
-                    max_eig = self.compute_max_eigenvalue(model_vadam, optimizer_vadam)
-                    max_eigenvalues_vadam.append(max_eig)
+                    max_eig = self.compute_max_eigenvalue(model_vradam, optimizer_vradam)
+                    max_eigenvalues_vradam.append(max_eig)
                     
                     if self.use_wandb:
                         wandb.log({
                             'step': step,
-                            f'vadam_eta_{eta}_max_eigenvalue': max_eig,
+                            f'vradam_eta_{eta}_max_eigenvalue': max_eig,
                             f'adam_eta_{eta}_theoretical_bound': adam_theoretical_bounds[eta]
                         })
             
-            results['vadam'][eta] = max_eigenvalues_vadam
+            results['vradam'][eta] = max_eigenvalues_vradam
         
         # Plot results if requested
         if plot_results:
@@ -352,7 +352,7 @@ class EdgeOfStabilityAnalyzer:
             adam_theoretical_bounds: Dictionary of theoretical bounds for Adam
             eta_values: List of learning rates tested
             beta1: beta1 parameter used for optimizers
-            beta3: beta3 parameter used for VADAM
+            beta3: beta3 parameter used for VRADAM
             output_dir: Directory to save plots to
         """
         # Create plots directory if it doesn't exist
@@ -366,9 +366,9 @@ class EdgeOfStabilityAnalyzer:
             steps = np.arange(0, len(results['adam'][eta]) * 5, 5)
             plt.plot(steps, results['adam'][eta], label=f'Adam (eta={eta})', color='blue')
             
-            # Plot VADAM results
-            steps = np.arange(0, len(results['vadam'][eta]) * 5, 5)
-            plt.plot(steps, results['vadam'][eta], label=f'VADAM (eta={eta}, beta3={beta3})', color='red')
+            # Plot VRADAM results
+            steps = np.arange(0, len(results['vradam'][eta]) * 5, 5)
+            plt.plot(steps, results['vradam'][eta], label=f'VRADAM (eta={eta}, beta3={beta3})', color='red')
             
             # Plot theoretical bound
             #plt.axhline(y=adam_theoretical_bounds[eta], linestyle='--', color='green', 
@@ -392,9 +392,9 @@ class EdgeOfStabilityAnalyzer:
             steps = np.arange(0, len(results['adam'][eta]) * 5, 5)
             plt.plot(steps, results['adam'][eta], label=f'Adam (eta={eta})', linestyle='-')
             
-            # Plot VADAM results
-            steps = np.arange(0, len(results['vadam'][eta]) * 5, 5)
-            plt.plot(steps, results['vadam'][eta], label=f'VADAM (eta={eta})', linestyle='--')
+            # Plot VRADAM results
+            steps = np.arange(0, len(results['vradam'][eta]) * 5, 5)
+            plt.plot(steps, results['vradam'][eta], label=f'VRADAM (eta={eta})', linestyle='--')
             
             # Plot theoretical bound
             #plt.axhline(y=adam_theoretical_bounds[eta], linestyle=':', alpha=0.5,
@@ -402,7 +402,7 @@ class EdgeOfStabilityAnalyzer:
         
         plt.xlabel('Training Steps')
         plt.ylabel('Max Eigenvalue of Preconditioned Hessian')
-        plt.title(f'Edge of Stability Analysis (beta1={beta1}, VADAM beta3={beta3})')
+        plt.title(f'Edge of Stability Analysis (beta1={beta1}, VRADAM beta3={beta3})')
         plt.legend()
         plt.grid(True, linestyle='--', alpha=0.7)
         
@@ -410,24 +410,24 @@ class EdgeOfStabilityAnalyzer:
         plt.savefig(os.path.join(output_dir, f"eos_all_etas_beta1_{beta1}_beta3_{beta3}.png"))
         plt.close()
         
-        # Create VADAM to Adam ratio plot to see if VADAM can go beyond the bound
+        # Create VRADAM to Adam ratio plot to see if VRADAM can go beyond the bound
         plt.figure(figsize=(10, 6))
         
         for eta in eta_values:
-            # Calculate ratio of VADAM max eigenvalue to Adam theoretical bound
+            # Calculate ratio of VRADAM max eigenvalue to Adam theoretical bound
             adam_bound = adam_theoretical_bounds[eta]
-            vadam_values = results['vadam'][eta]
-            steps = np.arange(0, len(vadam_values) * 5, 5)
-            ratio = [val / adam_bound for val in vadam_values]
+            vradam_values = results['vradam'][eta]
+            steps = np.arange(0, len(vradam_values) * 5, 5)
+            ratio = [val / adam_bound for val in vradam_values]
             
-            plt.plot(steps, ratio, label=f'VADAM/Adam_Bound Ratio (eta={eta})')
+            plt.plot(steps, ratio, label=f'VRADAM/Adam_Bound Ratio (eta={eta})')
         
         # Add horizontal line at ratio = 1
         plt.axhline(y=1.0, linestyle='--', color='black', label='Ratio = 1.0 (Adam bound)')
         
         plt.xlabel('Training Steps')
-        plt.ylabel('Ratio of VADAM Max Eigenvalue to Adam Theoretical Bound')
-        plt.title(f'VADAM Stability Beyond Adam Bound (beta1={beta1}, beta3={beta3})')
+        plt.ylabel('Ratio of VRADAM Max Eigenvalue to Adam Theoretical Bound')
+        plt.title(f'VRADAM Stability Beyond Adam Bound (beta1={beta1}, beta3={beta3})')
         plt.legend()
         plt.grid(True, linestyle='--', alpha=0.7)
         
@@ -436,7 +436,7 @@ class EdgeOfStabilityAnalyzer:
         plt.close()
 
 def main():
-    parser = argparse.ArgumentParser(description='Edge of Stability Analysis for VADAM')
+    parser = argparse.ArgumentParser(description='Edge of Stability Analysis for VRADAM')
     parser.add_argument('--model', type=str, default='SimpleCNN', help='Model type')
     parser.add_argument('--dataset', type=str, default='CIFAR10', help='Dataset')
     parser.add_argument('--device', type=str, default=None, help='Device to use (cuda, mps, cpu)')
@@ -446,13 +446,13 @@ def main():
                       help='Learning rates to test')
     parser.add_argument('--beta1', type=float, default=0.9, help='beta1 parameter')
     parser.add_argument('--beta2', type=float, default=0.999, help='beta2 parameter')
-    parser.add_argument('--beta3', type=float, default=1.0, help='beta3 parameter for VADAM')
+    parser.add_argument('--beta3', type=float, default=1.0, help='beta3 parameter for VRADAM')
     parser.add_argument('--num_steps', type=int, default=100, help='Number of steps to run')
     parser.add_argument('--use_wandb', action='store_true', help='Whether to log results to W&B')
     parser.add_argument('--output_dir', type=str, default='plots', help='Directory to save plots to')
-    parser.add_argument('--normgrad', action='store_true', help='Whether to use gradient norm for VADAM (default: True)')
-    parser.add_argument('--power', type=float, default=2.0, help='Power parameter for VADAM')
-    parser.add_argument('--lr_cutoff', type=float, default=19.0, help='Learning rate cutoff for VADAM')
+    parser.add_argument('--normgrad', action='store_true', help='Whether to use gradient norm for VRADAM (default: True)')
+    parser.add_argument('--power', type=float, default=2.0, help='Power parameter for VRADAM')
+    parser.add_argument('--lr_cutoff', type=float, default=19.0, help='Learning rate cutoff for VRADAM')
     
     args = parser.parse_args()
     
@@ -468,14 +468,14 @@ def main():
         use_wandb=args.use_wandb
     )
     
-    # Pass extra VADAM parameters
-    vadam_params = {}
+    # Pass extra VRADAM parameters
+    vradam_params = {}
     if hasattr(args, 'normgrad'):
-        vadam_params['normgrad'] = args.normgrad
+        vradam_params['normgrad'] = args.normgrad
     if hasattr(args, 'power'):
-        vadam_params['power'] = args.power
+        vradam_params['power'] = args.power
     if hasattr(args, 'lr_cutoff'):
-        vadam_params['lr_cutoff'] = args.lr_cutoff
+        vradam_params['lr_cutoff'] = args.lr_cutoff
     
     analyzer.run_edge_of_stability_experiment(
         eta_values=args.eta_values,
@@ -484,7 +484,7 @@ def main():
         beta3=args.beta3,
         num_steps=args.num_steps,
         output_dir=args.output_dir,
-        **vadam_params
+        **vradam_params
     )
 
 if __name__ == '__main__':

@@ -87,7 +87,7 @@ def analyze_all_sweeps(sweep_ids_file=None):
     best_configs = {}
     
     for model_type, dataset, sweep_id in sweep_info:
-        project_name = f"vadam-optimization-{model_type}-{dataset}"
+        project_name = f"vradam-optimization-{model_type}-{dataset}"
         print(f"\nAnalyzing sweep for {model_type} on {dataset} (ID: {sweep_id})")
         
         try:
@@ -103,11 +103,11 @@ def analyze_all_sweeps(sweep_ids_file=None):
                 }
                 
                 print(f"Best configuration found with {metrics}:")
-                # Print only VADAM relevant parameters
-                vadam_params = {k: v for k, v in config.items() 
+                # Print only VRADAM relevant parameters
+                vradam_params = {k: v for k, v in config.items() 
                                if k in ['eta', 'beta1', 'beta2', 'beta3', 'power', 
                                         'normgrad', 'lr_cutoff', 'weight_decay', 'eps']}
-                pprint(vadam_params)
+                pprint(vradam_params)
             else:
                 print(f"Could not extract best configuration: {metrics}")
         except Exception as e:
@@ -126,7 +126,7 @@ def analyze_all_sweeps(sweep_ids_file=None):
 def create_markdown_report(best_configs, output_file):
     """Create a markdown report with the best configurations"""
     with open(output_file, 'w') as f:
-        f.write("# VADAM Hyperparameter Optimization Report\n\n")
+        f.write("# VRADAM Hyperparameter Optimization Report\n\n")
         f.write("## Best Configurations by Model and Dataset\n\n")
         
         for config_name, config_data in best_configs.items():
@@ -150,7 +150,7 @@ def create_markdown_report(best_configs, output_file):
             f.write("\n")
             
             # Best parameters section
-            f.write("#### Best VADAM Parameters\n\n")
+            f.write("#### Best VRADAM Parameters\n\n")
             f.write("| Parameter | Value |\n")
             f.write("|-----------|-------|\n")
             for param_name, param_value in sorted(best_config.items()):
@@ -178,7 +178,7 @@ def create_markdown_report(best_configs, output_file):
         f.write("To use these optimized parameters in your benchmarks, update your configuration in `run_benchmarks.py`:\n\n")
         f.write("```python\n")
         f.write("# Example for using optimized parameters\n")
-        f.write("vadam_params.update({\n")
+        f.write("vradam_params.update({\n")
         f.write("    'eta': <optimized_value>,\n")
         f.write("    'beta1': <optimized_value>,\n")
         f.write("    'beta2': <optimized_value>,\n")
@@ -212,15 +212,15 @@ def generate_run_commands(best_configs_file):
             dataset = config_data["dataset"]
             best_config = config_data["best_config"]
             
-            # Extract VADAM parameters
-            vadam_params = {k: v for k, v in best_config.items() 
+            # Extract VRADAM parameters
+            vradam_params = {k: v for k, v in best_config.items() 
                            if k in ['eta', 'beta1', 'beta2', 'beta3', 'power', 
                                     'normgrad', 'lr_cutoff', 'weight_decay', 'eps']}
             
             # Generate python command
             cmd = f"python run_optimized_benchmark.py --model {model} --dataset {dataset} "
             
-            for param, value in vadam_params.items():
+            for param, value in vradam_params.items():
                 if isinstance(value, bool):
                     if value:
                         cmd += f"--{param} "
@@ -233,7 +233,7 @@ def generate_run_commands(best_configs_file):
     print(f"Optimized run commands saved to {output_file}")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Analyze W&B sweep results for VADAM optimization")
+    parser = argparse.ArgumentParser(description="Analyze W&B sweep results for VRADAM optimization")
     parser.add_argument("--sweep_ids", type=str, help="Path to JSON file with sweep IDs")
     parser.add_argument("--generate_commands", action="store_true", 
                       help="Generate run commands with optimized hyperparameters")

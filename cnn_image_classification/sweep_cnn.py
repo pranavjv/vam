@@ -31,15 +31,15 @@ def train_model(config=None):
             
             # Optimizer parameters based on which optimizer is used
             'lr': config.lr if config.optimizer == 'ADAM' else None,
-            'eta': config.lr if config.optimizer == 'VADAM' else None,
+            'eta': config.lr if config.optimizer == 'VRADAM' else None,
             'beta1': config.beta1,
             'beta2': config.beta2,
             'eps': config.eps,
             'weight_decay': config.weight_decay,
         }
         
-        # Add VADAM specific parameters if needed
-        if config.optimizer == 'VADAM':
+        # Add VRADAM specific parameters if needed
+        if config.optimizer == 'VRADAM':
             params.update({
                 'beta3': config.beta3 if hasattr(config, 'beta3') else 1.0,
                 'power': config.power if hasattr(config, 'power') else 2, 
@@ -107,8 +107,8 @@ def create_sweep_config(optimizer_type):
             'min': 1e-5,
             'max': 1e-2
         }
-    else:  # VADAM
-        # For VADAM, we sweep learning rate, beta3, and lr_cutoff
+    else:  # VRADAM
+        # For VRADAM, we sweep learning rate, beta3, and lr_cutoff
         sweep_config['parameters'].update({
             'lr': {
                 'distribution': 'log_uniform_values',
@@ -137,7 +137,7 @@ def run_sweeps(optimizer_type=None, count=10):
     wandb.login()
     
     if optimizer_type is None or optimizer_type.upper() == 'BOTH':
-        optimizers = ['ADAM', 'VADAM']
+        optimizers = ['ADAM', 'VRADAM']
     else:
         optimizers = [optimizer_type.upper()]
     
@@ -178,7 +178,7 @@ def run_sweeps(optimizer_type=None, count=10):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run W&B sweeps for CNN image classification")
-    parser.add_argument("--optimizer", type=str, choices=["adam", "vadam", "both"], default="both",
+    parser.add_argument("--optimizer", type=str, choices=["adam", "vradam", "both"], default="both",
                        help="Which optimizer to sweep (default: both)")
     parser.add_argument("--count", type=int, default=10, help="Number of runs per sweep (default: 10)")
     

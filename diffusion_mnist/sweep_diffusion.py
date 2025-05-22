@@ -9,7 +9,7 @@ import argparse
 # Add parent directory to path to import from root
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from diffusion_model import EnhancedUNet, DiffusionModel
-from VADAM import VADAM
+from VRADAM import VRADAM
 
 class DiffusionSweepBenchmark:
     def __init__(self, config):
@@ -108,9 +108,9 @@ class DiffusionSweepBenchmark:
         )
         
         # Setup optimizer
-        if self.config.optimizer == "VADAM":
-            # VADAM specific parameters
-            vadam_params = {
+        if self.config.optimizer == "VRADAM":
+            # VRADAM specific parameters
+            vradam_params = {
                 'beta1': self.config.beta1,
                 'beta2': self.config.beta2,
                 'beta3': self.config.beta3 if hasattr(self.config, 'beta3') else 1.0,
@@ -121,7 +121,7 @@ class DiffusionSweepBenchmark:
                 'normgrad': self.config.normgrad if hasattr(self.config, 'normgrad') else True,
                 'lr_cutoff': self.config.lr_cutoff if hasattr(self.config, 'lr_cutoff') else 19
             }
-            self.optimizer = VADAM(self.unet.parameters(), **vadam_params)
+            self.optimizer = VRADAM(self.unet.parameters(), **vradam_params)
         elif self.config.optimizer == "ADAM":
             # Standard Adam parameters
             adam_params = {
@@ -289,8 +289,8 @@ def create_sweep_config(optimizer_type):
             'min': 1e-5,
             'max': 1e-3
         }
-    else:  # VADAM
-        # For VADAM, we sweep learning rate, beta3, and lr_cutoff
+    else:  # VRADAM
+        # For VRADAM, we sweep learning rate, beta3, and lr_cutoff
         sweep_config['parameters'].update({
             'lr': {
                 'distribution': 'log_uniform_values',
@@ -319,7 +319,7 @@ def run_sweeps(optimizer_type=None, count=10):
     wandb.login()
     
     if optimizer_type is None or optimizer_type.upper() == 'BOTH':
-        optimizers = ['ADAM', 'VADAM']
+        optimizers = ['ADAM', 'VRADAM']
     else:
         optimizers = [optimizer_type.upper()]
     
@@ -360,7 +360,7 @@ def run_sweeps(optimizer_type=None, count=10):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run W&B sweeps for diffusion model on MNIST")
-    parser.add_argument("--optimizer", type=str, choices=["adam", "vadam", "both"], default="both",
+    parser.add_argument("--optimizer", type=str, choices=["adam", "vradam", "both"], default="both",
                        help="Which optimizer to sweep (default: both)")
     parser.add_argument("--count", type=int, default=10, help="Number of runs per sweep (default: 10)")
     

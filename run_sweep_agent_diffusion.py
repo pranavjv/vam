@@ -12,7 +12,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Import the diffusion model
 from diffusion_model import EnhancedUNet, DiffusionModel
-from VADAM import VADAM
+from VRADAM import VRADAM
 
 class DiffusionSweepTrainer:
     def __init__(self, config):
@@ -126,9 +126,9 @@ class DiffusionSweepTrainer:
         )
         
         # Setup optimizer
-        if self.config.optimizer == "VADAM":
-            # VADAM specific parameters
-            vadam_params = {
+        if self.config.optimizer == "VRADAM":
+            # VRADAM specific parameters
+            vradam_params = {
                 'beta1': self.config.beta1,
                 'beta2': self.config.beta2,
                 'beta3': self.config.beta3 if hasattr(self.config, 'beta3') else 1.0,
@@ -139,8 +139,8 @@ class DiffusionSweepTrainer:
                 'normgrad': self.config.normgrad if hasattr(self.config, 'normgrad') else True,
                 'lr_cutoff': self.config.lr_cutoff if hasattr(self.config, 'lr_cutoff') else 19
             }
-            self.optimizer = VADAM(self.unet.parameters(), **vadam_params)
-            print(f"Using VADAM optimizer with eta={vadam_params['eta']}, beta3={vadam_params['beta3']}")
+            self.optimizer = VRADAM(self.unet.parameters(), **vradam_params)
+            print(f"Using VRADAM optimizer with eta={vradam_params['eta']}, beta3={vradam_params['beta3']}")
         elif self.config.optimizer == "ADAM":
             # Standard Adam parameters
             adam_params = {
@@ -362,8 +362,8 @@ def create_sweep_config(optimizer_type):
             'min': 1e-5,
             'max': 1e-1
         }
-    else:  # VADAM
-        # For VADAM, we sweep learning rate, beta3, and lr_cutoff
+    else:  # VRADAM
+        # For VRADAM, we sweep learning rate, beta3, and lr_cutoff
         sweep_config['parameters'].update({
             'lr': {
                 'distribution': 'log_uniform_values',
@@ -391,7 +391,7 @@ def run_sweep_agent(optimizer_name, count=10):
     Create and run a new W&B sweep agent for a specific optimizer.
     
     Args:
-        optimizer_name: Name of the optimizer ('VADAM' or 'ADAM')
+        optimizer_name: Name of the optimizer ('VRADAM' or 'ADAM')
         count: Number of runs to perform
     """
     # Ensure wandb is logged in
@@ -433,8 +433,8 @@ def run_sweep_agent(optimizer_name, count=10):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run a W&B sweep agent for diffusion model optimization")
-    parser.add_argument("--optimizer", type=str, required=True, choices=["VADAM", "ADAM"],
-                       help="Optimizer to run the sweep for ('VADAM' or 'ADAM')")
+    parser.add_argument("--optimizer", type=str, required=True, choices=["VRADAM", "ADAM"],
+                       help="Optimizer to run the sweep for ('VRADAM' or 'ADAM')")
     parser.add_argument("--count", type=int, default=10, help="Number of runs to perform")
     
     args = parser.parse_args()

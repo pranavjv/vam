@@ -21,7 +21,7 @@ def train_model(config=None):
             'dataset': config.dataset,
             'dataset_size': config.dataset_size,
             'device': 'mps' if torch.backends.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu',
-            'optimizer': config.optimizer_name, # 'VADAM' or 'ADAM'
+            'optimizer': config.optimizer_name, # 'VRADAM' or 'ADAM'
             'batch_size': config.batch_size,
             'max_seq_len': config.max_seq_len,
             'embed_dim': config.embed_dim,
@@ -36,8 +36,8 @@ def train_model(config=None):
             # Note: 'seed' could be added here if we sweep it or fix it per sweep
         }
 
-        if config.optimizer_name == 'VADAM':
-            params['lr'] = config.eta # VADAM's main LR, Benchmarker expects 'lr'
+        if config.optimizer_name == 'VRADAM':
+            params['lr'] = config.eta # VRADAM's main LR, Benchmarker expects 'lr'
             params['eta'] = config.eta
             params['beta1'] = config.beta1
             params['beta2'] = config.beta2
@@ -114,8 +114,8 @@ def train_model(config=None):
         
         return results
 
-def create_vadam_sweep_config(model_type, dataset):
-    """Create sweep configuration for VADAM optimizer."""
+def create_vradam_sweep_config(model_type, dataset):
+    """Create sweep configuration for VRADAM optimizer."""
     sweep_config = {
         'method': 'bayes',
         'metric': {
@@ -124,7 +124,7 @@ def create_vadam_sweep_config(model_type, dataset):
         },
         'parameters': {
             # Optimizer Type
-            'optimizer_name': {'value': 'VADAM'},
+            'optimizer_name': {'value': 'VRADAM'},
             
             # Fixed parameters (shared across optimizers)
             'model': {'value': model_type},
@@ -139,8 +139,8 @@ def create_vadam_sweep_config(model_type, dataset):
             'lr_warmup_factor': {'value': 0.1},
             'lr_eta_min': {'value': 1e-5},
             
-            # VADAM specific parameters to optimize (or fixed as per user edits)
-            'eta': {'distribution': 'log_uniform_values', 'min': 1e-4, 'max': 0.1}, # Base LR for VADAM
+            # VRADAM specific parameters to optimize (or fixed as per user edits)
+            'eta': {'distribution': 'log_uniform_values', 'min': 1e-4, 'max': 0.1}, # Base LR for VRADAM
             'beta1': {'value': 0.9},
             'beta2': {'value': 0.999},
             'beta3': {'distribution': 'uniform', 'min': 0.1, 'max': 2.0},
@@ -187,7 +187,7 @@ def create_adam_sweep_config(model_type, dataset):
             'epochs': {'value': 100},
             'batch_size': {'value': 1024},
             
-            # Scheduler Parameters (Fixed, same as VADAM sweep)
+            # Scheduler Parameters (Fixed, same as VRADAM sweep)
             'lr_scheduler_type': {'value': 'WarmupCosineAnnealing'},
             'lr_warmup_epochs': {'value': 5},
             'lr_warmup_factor': {'value': 0.1},
@@ -197,8 +197,8 @@ def create_adam_sweep_config(model_type, dataset):
             'adam_lr': {'distribution': 'log_uniform_values', 'min': 1e-5, 'max': 1e-1}, # Base LR for ADAM
             'adam_beta1': {'value': 0.9},
             'adam_beta2': {'value': 0.999},
-            'adam_weight_decay': {'value': 1e-5}, # Using same fixed value as VADAM sweep
-            'adam_eps': {'value': 1e-8},      # Using same fixed value as VADAM sweep
+            'adam_weight_decay': {'value': 1e-5}, # Using same fixed value as VRADAM sweep
+            'adam_eps': {'value': 1e-8},      # Using same fixed value as VRADAM sweep
         }
     }
     
@@ -221,7 +221,7 @@ def create_adam_sweep_config(model_type, dataset):
 def run_sweeps():
     """Run sweeps for specified optimizers, models, and datasets."""
     # List of optimizers to run sweeps for
-    optimizer_types = ['VADAM', 'ADAM']
+    optimizer_types = ['VRADAM', 'ADAM']
     
     # List of all model and dataset combinations to benchmark
     model_dataset_pairs = [
@@ -240,8 +240,8 @@ def run_sweeps():
             print(f"\nSetting up sweep for {optimizer_type} - {model_type} on {dataset}")
             
             # Select the appropriate config function
-            if optimizer_type == 'VADAM':
-                sweep_config = create_vadam_sweep_config(model_type, dataset)
+            if optimizer_type == 'VRADAM':
+                sweep_config = create_vradam_sweep_config(model_type, dataset)
             elif optimizer_type == 'ADAM':
                 sweep_config = create_adam_sweep_config(model_type, dataset)
             else:
@@ -283,6 +283,6 @@ def run_sweeps():
         json.dump([(ot, m, d, s) for ot, m, d, s in all_sweep_ids], f, indent=2)
 
 if __name__ == "__main__":
-    # Rename original create_sweep_config to create_vadam_sweep_config for clarity
+    # Rename original create_sweep_config to create_vradam_sweep_config for clarity
     # (This edit needs to happen where the original function is defined)
     run_sweeps() 

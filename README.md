@@ -1,6 +1,6 @@
-# VADAM Benchmarking Framework
+# VRADAM Benchmarking Framework
 
-This repository contains a comprehensive benchmarking framework for comparing the ADAM and VADAM optimizers across various deep learning tasks.
+This repository contains a comprehensive benchmarking framework for comparing the ADAM and VRADAM optimizers across various deep learning tasks.
 
 ## Project Structure
 
@@ -9,7 +9,7 @@ The project is organized into separate modules for each benchmark task:
 ```
 vam/
 ├── benchmarker.py              # Core benchmarking functionality
-├── VADAM.py                    # VADAM optimizer implementation
+├── VRADAM.py                    # VRADAM optimizer implementation
 ├── architectures.py            # Common model architectures
 ├── run_benchmarks.py           # Main script to run all benchmarks
 ├── run_sweep_agent.py          # Script to run hyperparameter sweeps
@@ -64,13 +64,13 @@ python run_benchmarks.py --model CNN  # Options: CNN, Transformer, RL, Diffusion
 The framework integrates with Weights & Biases for hyperparameter optimization. For each benchmark, we can sweep:
 
 - For Adam: only the learning rate
-- For VADAM: learning rate (eta), beta3 and lr_cutoff parameters
+- For VRADAM: learning rate (eta), beta3 and lr_cutoff parameters
 
 To run a sweep:
 
 ```bash
-python run_sweep_agent.py --model CNN --optimizer vadam  # Options for model: CNN, Transformer, RL, Diffusion
-                                                         # Options for optimizer: adam, vadam, both
+python run_sweep_agent.py --model CNN --optimizer vradam  # Options for model: CNN, Transformer, RL, Diffusion
+                                                         # Options for optimizer: adam, vradam, both
 ```
 
 ## Results and Analysis
@@ -79,7 +79,7 @@ Benchmark results are saved in the `benchmark_results` directory. Each benchmark
 
 - JSON files with detailed metrics
 - PNG files with performance charts
-- Summary text files comparing ADAM and VADAM
+- Summary text files comparing ADAM and VRADAM
 
 ## Requirements
 
