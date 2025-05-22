@@ -55,6 +55,17 @@ def train_model(config=None):
             params['beta2'] = config.adam_beta2
             params['weight_decay'] = config.adam_weight_decay
             params['eps'] = config.adam_eps
+        elif config.optimizer_name == 'SGD':
+            params['lr'] = config.sgd_lr  # SGD's learning rate
+            params['momentum'] = config.sgd_momentum
+            #params['weight_decay'] = config.sgd_weight_decay
+            params['nesterov'] = config.sgd_nesterov
+        elif config.optimizer_name == 'RMSPROP':
+            params['lr'] = config.rmsprop_lr  # RMSprop's learning rate
+            params['alpha'] = config.rmsprop_alpha
+            params['eps'] = config.rmsprop_eps
+            #params['weight_decay'] = config.rmsprop_weight_decay
+            params['momentum'] = config.rmsprop_momentum
         
         # Create and run benchmarker
         print(f"Running transformer benchmark with params: {params}")
@@ -182,6 +193,87 @@ def create_adam_sweep_config():
             'adam_beta2': {'value': 0.999},
             'adam_weight_decay': {'value': 1e-5},
             'adam_eps': {'value': 1e-8},
+        }
+    }
+    
+    return sweep_config
+
+def create_sgd_sweep_config():
+    """Create sweep configuration for SGD optimizer for transformer language modeling."""
+    sweep_config = {
+        'method': 'bayes',
+        'metric': {
+            'name': 'optimization_metric',
+            'goal': 'minimize'  # Lower validation perplexity is better
+        },
+        'parameters': {
+            # Optimizer Type
+            'optimizer_name': {'value': 'SGD'},
+            
+            # Fixed parameters
+            'dataset_size': {'value': 'full'},
+            'epochs': {'value': 100},
+            'batch_size': {'value': 32},
+            
+            # Reproducibility
+            'seed': {'value': 0},
+            
+            # Scheduler Parameters
+            'lr_scheduler_type': {'value': 'WarmupCosineAnnealing'},
+            'lr_warmup_epochs': {'value': 5},
+            'lr_warmup_factor': {'value': 0.1},
+            'lr_eta_min': {'value': 1e-5},
+            
+            # Transformer specific parameters
+            'max_seq_len': {'value': 64},
+            'embed_dim': {'value': 128},
+            'hidden_dim': {'value': 256},
+            
+            # SGD specific parameters to optimize
+            'sgd_lr': {'distribution': 'log_uniform_values', 'min': 1e-5, 'max': 1e-1},  # SGD typically needs higher LR
+            'sgd_momentum': {'value':0.2},
+            'sgd_nesterov': {'value': True},
+        }
+    }
+    
+    return sweep_config
+
+def create_rmsprop_sweep_config():
+    """Create sweep configuration for RMSprop optimizer for transformer language modeling."""
+    sweep_config = {
+        'method': 'bayes',
+        'metric': {
+            'name': 'optimization_metric',
+            'goal': 'minimize'  # Lower validation perplexity is better
+        },
+        'parameters': {
+            # Optimizer Type
+            'optimizer_name': {'value': 'RMSPROP'},
+            
+            # Fixed parameters
+            'dataset_size': {'value': 'full'},
+            'epochs': {'value': 100},
+            'batch_size': {'value': 32},
+            
+            # Reproducibility
+            'seed': {'value': 0},
+            
+            # Scheduler Parameters
+            'lr_scheduler_type': {'value': 'WarmupCosineAnnealing'},
+            'lr_warmup_epochs': {'value': 5},
+            'lr_warmup_factor': {'value': 0.1},
+            'lr_eta_min': {'value': 1e-5},
+            
+            # Transformer specific parameters
+            'max_seq_len': {'value': 64},
+            'embed_dim': {'value': 128},
+            'hidden_dim': {'value': 256},
+            
+            # RMSprop specific parameters to optimize
+            'rmsprop_lr': {'distribution': 'log_uniform_values', 'min': 1e-5, 'max': 0.1},
+            'rmsprop_alpha': {'value':0.1},
+            'rmsprop_eps': {'value': 1e-8},
+            'rmsprop_momentum': {'value':0.2},
         }
     }
     

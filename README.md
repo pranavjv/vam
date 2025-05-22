@@ -79,12 +79,12 @@ To run sweeps for specific models, use the following commands. These examples us
 
 **CNN Sweep:**
 ```bash
-python run_sweep_agent_cnn.py --optimizer_name VRADAM --model SimpleCNN --dataset CIFAR10 --count 1
+python run_sweep_agent_cnn.py --optimizer_name VRADAM --model DeeperCNN --dataset CIFAR10 --count 1
 ```
 
 **Diffusion Model Sweep:**
 ```bash
-python run_sweep_agent_diffusion.py --optimizer_name VRADAM --count 1
+python run_sweep_agent_diffusion.py --optimizer VRADAM --count 1
 ```
 
 **GFlowNet Sweep:**

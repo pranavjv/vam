@@ -4,6 +4,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data import random_split
 import torch.nn.functional as F
 import nltk
+nltk.download('punkt_tab')
 from nltk.tokenize import word_tokenize
 from collections import Counter
 import numpy as np
