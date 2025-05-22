@@ -3,7 +3,7 @@ import wandb
 import json
 import os
 # Import the specific config creators and the generalized train_model
-from sweep_vradam import train_model, create_vradam_sweep_config, create_adam_sweep_config
+from sweep_vradam_cnn import train_model, create_vradam_sweep_config, create_adam_sweep_config
 
 def run_sweep_agent(optimizer_name, model_type, dataset, count=10):
     """
