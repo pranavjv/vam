@@ -73,6 +73,30 @@ python run_sweep_agent.py --model CNN --optimizer vradam  # Options for model: C
                                                          # Options for optimizer: adam, vradam, both
 ```
 
+### Individual Sweep Commands
+
+To run sweeps for specific models, use the following commands. These examples use the ADAM optimizer and a small number of runs (`--count 1`) for demonstration purposes.
+
+**CNN Sweep:**
+```bash
+python run_sweep_agent_cnn.py --optimizer_name VRADAM --model SimpleCNN --dataset CIFAR10 --count 1
+```
+
+**Diffusion Model Sweep:**
+```bash
+python run_sweep_agent_diffusion.py --optimizer_name VRADAM --count 1
+```
+
+**GFlowNet Sweep:**
+```bash
+python run_sweep_agent_gflownet.py --optimizer_name VRADAM --count 1
+```
+
+**Transformer Sweep:**
+```bash
+python run_sweep_agent_transformer.py --optimizer_name VRADAM --count 1
+```
+
 ## Results and Analysis
 
 Benchmark results are saved in the `benchmark_results` directory. Each benchmark run produces:

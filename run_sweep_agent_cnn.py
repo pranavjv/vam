@@ -3,14 +3,14 @@ import wandb
 import json
 import os
 # Import the specific config creators and the generalized train_model
-from sweep_vradam_cnn import train_model, create_vradam_sweep_config, create_adam_sweep_config
+from sweep_vradam_cnn import train_model, create_vradam_sweep_config, create_adam_sweep_config, create_sgd_sweep_config, create_rmsprop_sweep_config
 
 def run_sweep_agent(optimizer_name, model_type, dataset, count=10):
     """
     Create and run a new W&B sweep agent for a specific optimizer, model, and dataset.
     
     Args:
-        optimizer_name: Name of the optimizer ('VRADAM' or 'ADAM')
+        optimizer_name: Name of the optimizer ('VRADAM' or 'ADAM' or 'SGD' or 'RMSPROP')
         model_type: Model type (SimpleCNN, MLPModel, TransformerModel)
         dataset: Dataset (CIFAR10, IMDB, WikiText2)
         count: Number of runs to perform
@@ -25,13 +25,21 @@ def run_sweep_agent(optimizer_name, model_type, dataset, count=10):
     if optimizer_name == 'VRADAM':
         print(f"Creating new VRADAM sweep for {model_type} on {dataset}")
         sweep_config = create_vradam_sweep_config(model_type, dataset)
-        project_name = f"VRADAM-optimization-{model_type}-{dataset}"
+        project_name = f"VRADAM-{dataset}"
     elif optimizer_name == 'ADAM':
         print(f"Creating new ADAM sweep for {model_type} on {dataset}")
         sweep_config = create_adam_sweep_config(model_type, dataset)
-        project_name = f"ADAM-optimization-{model_type}-{dataset}"
+        project_name = f"ADAM-{dataset}"
+    elif optimizer_name == 'SGD':
+        print(f"Creating new SGD sweep for {model_type} on {dataset}")
+        sweep_config = create_sgd_sweep_config(model_type, dataset)
+        project_name = f"SGD-{dataset}"
+    elif optimizer_name == 'RMSPROP':
+        print(f"Creating new RMSPROP sweep for {model_type} on {dataset}")
+        sweep_config = create_rmsprop_sweep_config(model_type, dataset)
+        project_name = f"RMSPROP-{dataset}"
     else:
-        raise ValueError(f"Unsupported optimizer_name: {optimizer_name}. Choose 'VRADAM' or 'ADAM'.")
+        raise ValueError(f"Unsupported optimizer_name: {optimizer_name}. Choose 'VRADAM', 'ADAM', 'SGD', or 'RMSPROP'.")
 
     # Initialize the sweep
     sweep_id = wandb.sweep(
@@ -58,11 +66,12 @@ def run_sweep_agent(optimizer_name, model_type, dataset, count=10):
     return sweep_id
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run a W&B sweep agent for VRADAM or ADAM optimization")
+    parser = argparse.ArgumentParser(description="Run a W&B sweep agent for VRADAM, ADAM, SGD, or RMSPROP optimization")
     # Removed --sweep_id, added required --optimizer_name
-    parser.add_argument("--optimizer_name", type=str, required=True, choices=["VRADAM", "ADAM"],
-                      help="Optimizer to run the sweep for ('VRADAM' or 'ADAM')")
-    parser.add_argument("--model", type=str, required=True, choices=["SimpleCNN", "MLPModel", "TransformerModel"], 
+    parser.add_argument("--optimizer_name", type=str, required=True, choices=["VRADAM", "ADAM", "SGD", "RMSPROP"],
+                      help="Optimizer to run the sweep for ('VRADAM', 'ADAM', 'SGD', or 'RMSPROP')")
+    parser.add_argument("--model", type=str, required=True,
+                      choices=["SimpleCNN", "DeeperCNN", "MLPModel", "TransformerModel"],
                       help="Model type for the sweep")
     parser.add_argument("--dataset", type=str, required=True, choices=["CIFAR10", "IMDB", "WikiText2"], 
                       help="Dataset for the sweep")
