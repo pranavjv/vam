@@ -45,19 +45,6 @@ The framework includes the following benchmarks:
 3. **RL for Control**: Trains a policy network on the HalfCheetah environment for reinforcement learning.
 4. **Diffusion Model**: Trains a diffusion model on the MNIST dataset for image generation.
 
-## Running Benchmarks
-
-To run all benchmarks:
-
-```bash
-python run_benchmarks.py
-```
-
-To run a specific benchmark:
-
-```bash
-python run_benchmarks.py --model CNN  # Options: CNN, Transformer, RL, Diffusion
-```
 
 ## Hyperparameter Sweeps
 
