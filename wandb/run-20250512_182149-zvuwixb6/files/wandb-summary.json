@@ -1,1 +1,0 @@
-{"train_time":558.8861758708954,"_runtime":559.412926089,"_step":101,"_wandb":{"runtime":559},"train_reward":-2.7928098851140177,"test_reward":-2.612018327716096,"epoch":99,"final_train_loss":1.08125638961792,"_timestamp":1.7470746693242514e+09,"mean_reward":-2.7928098851140177,"optimization_metric":2.612018327716096}

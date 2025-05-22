@@ -12,7 +12,7 @@ import time
 
 class VADAM(Optimizer):
     """
-    Velocity-Adaptive Momentum (VAM) optimizer with Adam-like behavior and weight decay according to ADAMW
+    Velocity-regularized ADAM (VRADAM) optimizer with Adam-like behavior and weight decay according to ADAMW
     """
     def __init__(self, params, beta1= 0.9, beta2= 0.999, beta3= 1, eta= 0.001, eps=1e-8, weight_decay=0, power=2, normgrad= True, lr_cutoff= 19):
         # eta corresponds to the maximal learning rate

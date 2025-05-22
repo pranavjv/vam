@@ -1,1 +1,0 @@
-{"_wandb":{"runtime":7908},"train_time":7869.345908880234,"_timestamp":1.7471076209314404e+09,"final_train_loss":NaN,"optimization_metric":NaN,"val_perplexity":NaN,"final_train_perplexity":NaN,"train_loss":NaN,"train_perplexity":NaN,"epoch":99,"test_loss":NaN,"_step":101,"test_perplexity":NaN,"_runtime":7908.831824681,"val_loss":NaN}

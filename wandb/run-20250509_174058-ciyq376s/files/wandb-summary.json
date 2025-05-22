@@ -1,1 +1,0 @@
-{"test_loss":0,"epoch":2,"_runtime":0.622153,"final_train_loss":0,"train_loss":0,"train_perplexity":1,"optimization_metric":1,"_step":4,"train_time":0.004668235778808594,"_wandb":{"runtime":0},"_timestamp":1.746808859064764e+09,"final_train_perplexity":1,"test_perplexity":1}

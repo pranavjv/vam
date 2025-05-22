@@ -1,1 +1,0 @@
-{"optimization_metric":2.9122417333057453,"_timestamp":1.7471054103889e+09,"final_train_loss":-5.286540269851685,"train_reward":-2.9613266974877304,"test_reward":-2.9122417333057453,"train_time":4479.865597963333,"_step":101,"mean_reward":-2.9613266974877304,"_wandb":{"runtime":4480},"epoch":99,"_runtime":4480.548171539}
